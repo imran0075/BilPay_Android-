@@ -8,8 +8,11 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.*
+import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : Activity() {
+    private lateinit var apiStatus: TextView
     private val green = Color.rgb(0, 112, 78)
     private val dark = Color.rgb(20, 39, 34)
     private val muted = Color.rgb(104, 122, 115)
@@ -71,6 +74,9 @@ class MainActivity : Activity() {
         page.addView(providers)
         val note = TextView(this).apply { text = "🔒  আপনার লেনদেনের নিরাপত্তাই আমাদের অগ্রাধিকার\n\nBilPay এখন ডেমো সংস্করণ। বাস্তব পেমেন্ট চালুর আগে অনুমোদিত পার্টনার API ও নিরাপত্তা যাচাই প্রয়োজন।"; textSize=12f; setTextColor(muted); setPadding(dp(16),dp(16),dp(16),dp(16)); background=shape(Color.rgb(233,244,239),16) }
         page.addView(note, LinearLayout.LayoutParams(-1,-2).apply { topMargin=dp(22) })
+        apiStatus = text("API: সার্ভার URL সেট করা হয়নি", 11f, muted).apply { setPadding(dp(4),dp(10),dp(4),dp(4)) }
+        page.addView(apiStatus)
+        checkApiConnection()
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1,0,1f))
         val nav = LinearLayout(this).apply { gravity=Gravity.CENTER; setPadding(dp(8),dp(10),dp(8),dp(10)); setBackgroundColor(white) }
@@ -80,6 +86,29 @@ class MainActivity : Activity() {
         }
         root.addView(nav)
         setContentView(root)
+    }
+    private fun checkApiConnection() {
+        val baseUrl = BuildConfig.API_BASE_URL.trim().trimEnd('/')
+        if (baseUrl.isBlank()) {
+            apiStatus.text = "API: এখনো সার্ভার URL সেট করা হয়নি"
+            return
+        }
+        Thread {
+            val connected = try {
+                val connection = (URL(baseUrl + "/health").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 8000
+                    readTimeout = 8000
+                }
+                val ok = connection.responseCode == 200
+                connection.disconnect()
+                ok
+            } catch (_: Exception) { false }
+            runOnUiThread {
+                apiStatus.text = if (connected) "API: সংযুক্ত ✓" else "API: সার্ভারে সংযোগ পাওয়া যায়নি"
+                apiStatus.setTextColor(if (connected) green else muted)
+            }
+        }.start()
     }
     private fun section(parent: LinearLayout, title: String, subtitle: String) {
         parent.addView(text(title,18f,dark,true).apply { setPadding(0,dp(24),0,dp(3)) })
