@@ -1,6 +1,17 @@
 package com.bilpay.app
 
 import android.app.Activity
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
+import android.os.Environment
+import android.os.Build
+import androidx.core.content.FileProvider
+import org.json.JSONObject
+import java.io.File
 import android.os.Bundle
 import android.graphics.Color
 import android.graphics.Typeface
@@ -23,6 +34,84 @@ class MainActivity : Activity() {
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false): TextView =
         TextView(this).apply { text = value; textSize = size; setTextColor(color); if (bold) setTypeface(null, Typeface.BOLD) }
     private val demoTransactions = mutableListOf<String>()
+
+    private var pendingApkDownload: Long = -1L
+    private var downloadReceiver: BroadcastReceiver? = null
+
+    private fun checkForUpdate() {
+        Thread {
+            try {
+                val connection = (URL("https://raw.githubusercontent.com/imran0075/BilPay_Android-/main/version.json").openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 10000
+                    readTimeout = 10000
+                }
+                val body = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                val info = JSONObject(body)
+                val latestCode = info.optInt("versionCode", 1)
+                val latestName = info.optString("versionName", "")
+                val apkUrl = info.optString("apkUrl", "")
+                if (latestCode > BuildConfig.VERSION_CODE && apkUrl.startsWith("https://")) {
+                    runOnUiThread {
+                        android.app.AlertDialog.Builder(this)
+                            .setTitle("নতুন BilPay আপডেট")
+                            .setMessage("নতুন সংস্করণ $latestName পাওয়া গেছে।")
+                            .setNegativeButton("পরে", null)
+                            .setPositiveButton("আপডেট করুন") { _, _ -> downloadUpdate(apkUrl) }
+                            .show()
+                    }
+                }
+            } catch (_: Exception) { }
+        }.start()
+    }
+
+    private fun downloadUpdate(apkUrl: String) {
+        try {
+            val request = DownloadManager.Request(Uri.parse(apkUrl))
+                .setTitle("BilPay আপডেট")
+                .setDescription("নতুন সংস্করণ ডাউনলোড হচ্ছে")
+                .setMimeType("application/vnd.android.package-archive")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "BilPay-update.apk")
+            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            pendingApkDownload = manager.enqueue(request)
+            downloadReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) != pendingApkDownload) return
+                    try {
+                        val cursor = manager.query(DownloadManager.Query().setFilterById(pendingApkDownload))
+                        val success = cursor.use { it.moveToFirst() && it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) == DownloadManager.STATUS_SUCCESSFUL }
+                        if (success) {
+                            val apk = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "BilPay-update.apk")
+                            val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", apk)
+                            startActivity(Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                            })
+                        } else Toast.makeText(this@MainActivity, "ডাউনলোড সম্পন্ন হয়নি।", Toast.LENGTH_LONG).show()
+                    } catch (_: Exception) {
+                        Toast.makeText(this@MainActivity, "আপডেট ইনস্টল চালু করা যায়নি।", Toast.LENGTH_LONG).show()
+                    } finally { unregisterDownloadReceiver() }
+                }
+            }
+            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+            if (Build.VERSION.SDK_INT >= 33) registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            else registerReceiver(downloadReceiver, filter)
+            Toast.makeText(this, "আপডেট ডাউনলোড শুরু হয়েছে", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "আপডেট ডাউনলোড শুরু করা যায়নি", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun unregisterDownloadReceiver() {
+        downloadReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
+        downloadReceiver = null
+    }
+
+    override fun onDestroy() {
+        unregisterDownloadReceiver()
+        super.onDestroy()
+    }
 
     private fun action(label: String) {
         when {
@@ -183,6 +272,7 @@ class MainActivity : Activity() {
         }
         root.addView(nav)
         setContentView(root)
+        checkForUpdate()
     }
     private fun checkApiConnection() {
         val baseUrl = BuildConfig.API_BASE_URL.trim().trimEnd('/')
