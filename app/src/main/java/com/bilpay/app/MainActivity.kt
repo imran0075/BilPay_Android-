@@ -22,29 +22,104 @@ class MainActivity : Activity() {
         GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false): TextView =
         TextView(this).apply { text = value; textSize = size; setTextColor(color); if (bold) setTypeface(null, Typeface.BOLD) }
+    private val demoTransactions = mutableListOf<String>()
+
     private fun action(label: String) {
-        val detail = when {
+        when {
+            label.contains("হিসাব") || label.contains("লেনদেন") -> showHistory()
             label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") ||
             label.contains("ইন্টারনেট") || label.contains("টিভি") || label.contains("টেলিফোন") ||
             label.contains("শিক্ষা") || label.contains("হাসপাতাল") || label.contains("সরকারি") ||
-            label.contains("অন্যান্য") || label.contains("আরও সেবা") ->
-                "ডেমো বিল পেমেন্ট\\n\\nএখানে বিলার নির্বাচন, গ্রাহক/অ্যাকাউন্ট নম্বর এবং বিলের পরিমাণ দেওয়ার স্ক্রিন যুক্ত হবে।\\n\\nএটি পরীক্ষামূলক প্রদর্শন—কোনো বিল জমা হবে না এবং টাকা কাটা হবে না।"
-            label.contains("রিচার্জ") ->
-                "ডেমো মোবাইল রিচার্জ\\n\\nমোবাইল নম্বর ও রিচার্জের পরিমাণ দিয়ে পরবর্তী ধাপের নমুনা দেখা যাবে।\\n\\nএটি বাস্তব রিচার্জ নয়।"
-            label.contains("মানি") || label.contains("ট্রান্সফার") || label.contains("QR") ||
-            label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") || label.contains("Upay") ->
-                "ডেমো আর্থিক সেবা\\n\\nসংশ্লিষ্ট সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। কোনো টাকা পাঠানো, গ্রহণ বা উত্তোলন করা হবে না।"
-            label.contains("হিসাব") || label.contains("লেনদেন") ->
-                "ডেমো লেনদেন ইতিহাস\\n\\nএখনো কোনো বাস্তব লেনদেন নেই। এখানে ভবিষ্যতে যাচাইকৃত লেনদেনের রসিদ ও অবস্থা দেখা যাবে।"
+            label.contains("অন্যান্য") || label.contains("রিচার্জ") ->
+                showBillForm(label)
+            label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") ||
+            label.contains("Upay") || label.contains("মানি") || label.contains("ট্রান্সফার") ||
+            label.contains("QR") ->
+                showInfo("ডেমো আর্থিক সেবা", "এই সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। এখানে কোনো টাকা পাঠানো, গ্রহণ বা উত্তোলন হবে না।")
             label.contains("প্রোফাইল") ->
-                "ডেমো প্রোফাইল\\n\\nBilPay ব্যবহারকারীর প্রোফাইল, পরিচয় যাচাই ও নিরাপত্তা সেটিংস এখানে থাকবে।"
-            else -> "BilPay ডেমো সংস্করণে এই স্ক্রিনটি দেখানো হচ্ছে। বাস্তব সেবা চালুর আগে প্রয়োজনীয় অনুমোদন ও API সংযোগ সম্পন্ন হবে।"
+                showInfo("ডেমো প্রোফাইল", "ব্যবহারকারীর প্রোফাইল, পরিচয় যাচাই ও নিরাপত্তা সেটিংস এখানে যুক্ত হবে।")
+            else -> showInfo("BilPay • $label", "BilPay এখন পরীক্ষামূলক ডেমো সংস্করণ। বাস্তব সেবা চালুর আগে প্রয়োজনীয় অনুমোদন ও API সংযোগ সম্পন্ন হবে।")
+        }
+    }
+
+    private fun showInfo(title: String, message: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("বুঝেছি", null)
+            .show()
+    }
+
+    private fun showBillForm(service: String) {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(4))
+        }
+        val providerLabel = text("সেবা / বিলার নির্বাচন", 13f, dark, true)
+        panel.addView(providerLabel)
+        val provider = Spinner(this)
+        val providerOptions = when {
+            service.contains("বিদ্যুৎ") -> listOf("বিদ্যুৎ বিলার নির্বাচন", "পল্লী বিদ্যুৎ", "DESCO", "DPDC", "NESCO", "BPDB")
+            service.contains("পানি") -> listOf("পানি বিলার নির্বাচন", "WASA")
+            service.contains("গ্যাস") -> listOf("গ্যাস বিলার নির্বাচন", "Titas Gas", "Karnaphuli Gas", "Jalalabad Gas")
+            service.contains("রিচার্জ") -> listOf("অপারেটর নির্বাচন", "Grameenphone", "Robi", "Banglalink", "Teletalk")
+            else -> listOf("প্রতিষ্ঠান নির্বাচন", "অন্যান্য প্রদানকারী")
+        }
+        provider.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providerOptions)
+        panel.addView(provider, LinearLayout.LayoutParams(-1, dp(48)))
+        val account = EditText(this).apply {
+            hint = if (service.contains("রিচার্জ")) "মোবাইল নম্বর" else "গ্রাহক / বিল / অ্যাকাউন্ট নম্বর"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            textSize = 14f
+        }
+        panel.addView(account, LinearLayout.LayoutParams(-1, dp(54)))
+        val amount = EditText(this).apply {
+            hint = "টাকার পরিমাণ (৳)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            textSize = 14f
+        }
+        panel.addView(amount, LinearLayout.LayoutParams(-1, dp(54)))
+        panel.addView(text("শুধু ডেমো: কোনো বিল পরিশোধ বা রিচার্জ হবে না, টাকা কাটা হবে না।", 11f, muted).apply {
+            setPadding(0, dp(8), 0, 0)
+        })
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("ডেমো • $service")
+            .setView(panel)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("ডেমো চালিয়ে যান", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val accountNo = account.text.toString().trim()
+                val value = amount.text.toString().trim().toDoubleOrNull()
+                if (provider.selectedItemPosition == 0 || accountNo.length < 5 || value == null || value <= 0) {
+                    Toast.makeText(this, "বিলার, সঠিক নম্বর ও টাকার পরিমাণ দিন", Toast.LENGTH_LONG).show()
+                } else {
+                    val record = "$service • ${provider.selectedItem} • $accountNo • ৳${"%.2f".format(value)} • ডেমো"
+                    demoTransactions.add(0, record)
+                    dialog.dismiss()
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle("ডেমো অনুরোধ তৈরি হয়েছে")
+                        .setMessage("আপনার পরীক্ষামূলক অনুরোধটি ইতিহাসে যোগ হয়েছে।\\n\\nকোনো বাস্তব পেমেন্ট সম্পন্ন হয়নি এবং কোনো টাকা কাটা হয়নি।")
+                        .setPositiveButton("ইতিহাস দেখুন") { _, _ -> showHistory() }
+                        .setNegativeButton("ঠিক আছে", null)
+                        .show()
+                }
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showHistory() {
+        val message = if (demoTransactions.isEmpty()) {
+            "এখনো কোনো ডেমো অনুরোধ নেই। বিল পেমেন্টের ফর্ম থেকে একটি নমুনা অনুরোধ তৈরি করলে এখানে দেখা যাবে।"
+        } else {
+            demoTransactions.mapIndexed { index, item -> "${index + 1}. $item" }.joinToString("\\n\\n")
         }
         android.app.AlertDialog.Builder(this)
-            .setTitle("BilPay • $label")
-            .setMessage(detail)
-            .setPositiveButton("বুঝেছি") { dialog, _ -> dialog.dismiss() }
-            .setNegativeButton("বন্ধ করুন") { dialog, _ -> dialog.dismiss() }
+            .setTitle("লেনদেনের ইতিহাস • ডেমো")
+            .setMessage(message + "\\n\\nনোট: এগুলো পরীক্ষামূলক রেকর্ড, বাস্তব লেনদেন নয়।")
+            .setPositiveButton("বন্ধ করুন", null)
             .show()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
