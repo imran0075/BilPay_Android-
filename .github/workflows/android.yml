@@ -1,3 +1,4 @@
+# signing-secret-check-2026-11-07
 name: Build BilPay Android APK # refreshed after permanent signing key setup - retry after Base64 secret refresh
 on:
   push:
