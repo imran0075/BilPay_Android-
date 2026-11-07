@@ -114,21 +114,23 @@ class MainActivity : Activity() {
     }
 
     private fun action(label: String) {
-        when {
-            label.contains("হিসাব") || label.contains("লেনদেন") -> showHistory()
+        val message = when {
+            label.contains("হিসাব") || label.contains("লেনদেন") ->
+                "লেনদেনের ইতিহাস চালুর জন্য নিরাপদ অ্যাকাউন্ট ও সার্ভার-সাইড লেজার তৈরি করা হচ্ছে।"
             label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") ||
             label.contains("ইন্টারনেট") || label.contains("টিভি") || label.contains("টেলিফোন") ||
             label.contains("শিক্ষা") || label.contains("হাসপাতাল") || label.contains("সরকারি") ||
             label.contains("অন্যান্য") || label.contains("রিচার্জ") ->
-                showBillForm(label)
+                "এই বিলারের অনুমোদিত API এখনো সংযুক্ত হয়নি। সংযোগ সম্পন্ন হলে সেবাটি চালু হবে।"
             label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") ||
             label.contains("Upay") || label.contains("মানি") || label.contains("ট্রান্সফার") ||
-            label.contains("QR") ->
-                showInfo("ডেমো আর্থিক সেবা", "এই সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। এখানে কোনো টাকা পাঠানো, গ্রহণ বা উত্তোলন হবে না।")
+            label.contains("QR") || label.contains("অ্যাড") ->
+                "অফিসিয়াল merchant API, চুক্তি ও প্রয়োজনীয় অনুমোদন ছাড়া কোনো টাকা পাঠানো বা গ্রহণ করা হবে না।"
             label.contains("প্রোফাইল") ->
-                showInfo("ডেমো প্রোফাইল", "ব্যবহারকারীর প্রোফাইল, পরিচয় যাচাই ও নিরাপত্তা সেটিংস এখানে যুক্ত হবে।")
-            else -> showInfo("BilPay • $label", "BilPay এখন পরীক্ষামূলক ডেমো সংস্করণ। বাস্তব সেবা চালুর আগে প্রয়োজনীয় অনুমোদন ও API সংযোগ সম্পন্ন হবে।")
+                "নিরাপদ লগইন ও পরিচয় যাচাই (KYC) মডিউল পরবর্তী ধাপে যুক্ত করা হবে।"
+            else -> "এই মডিউলটি প্রস্তুত করা হচ্ছে। কোনো ডেমো লেনদেন বা ভুয়া ব্যালেন্স দেখানো হবে না।"
         }
+        showInfo("BilPay • $label", message)
     }
 
     private fun showInfo(title: String, message: String) {
@@ -140,77 +142,13 @@ class MainActivity : Activity() {
     }
 
     private fun showBillForm(service: String) {
-        val panel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), dp(4))
-        }
-        val providerLabel = text("সেবা / বিলার নির্বাচন", 13f, dark, true)
-        panel.addView(providerLabel)
-        val provider = Spinner(this)
-        val providerOptions = when {
-            service.contains("বিদ্যুৎ") -> listOf("বিদ্যুৎ বিলার নির্বাচন", "পল্লী বিদ্যুৎ", "DESCO", "DPDC", "NESCO", "BPDB")
-            service.contains("পানি") -> listOf("পানি বিলার নির্বাচন", "WASA")
-            service.contains("গ্যাস") -> listOf("গ্যাস বিলার নির্বাচন", "Titas Gas", "Karnaphuli Gas", "Jalalabad Gas")
-            service.contains("রিচার্জ") -> listOf("অপারেটর নির্বাচন", "Grameenphone", "Robi", "Banglalink", "Teletalk")
-            else -> listOf("প্রতিষ্ঠান নির্বাচন", "অন্যান্য প্রদানকারী")
-        }
-        provider.adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, providerOptions)
-        panel.addView(provider, LinearLayout.LayoutParams(-1, dp(48)))
-        val account = EditText(this).apply {
-            hint = if (service.contains("রিচার্জ")) "মোবাইল নম্বর" else "গ্রাহক / বিল / অ্যাকাউন্ট নম্বর"
-            inputType = android.text.InputType.TYPE_CLASS_TEXT
-            textSize = 14f
-        }
-        panel.addView(account, LinearLayout.LayoutParams(-1, dp(54)))
-        val amount = EditText(this).apply {
-            hint = "টাকার পরিমাণ (৳)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            textSize = 14f
-        }
-        panel.addView(amount, LinearLayout.LayoutParams(-1, dp(54)))
-        panel.addView(text("শুধু ডেমো: কোনো বিল পরিশোধ বা রিচার্জ হবে না, টাকা কাটা হবে না।", 11f, muted).apply {
-            setPadding(0, dp(8), 0, 0)
-        })
-        val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("ডেমো • $service")
-            .setView(panel)
-            .setNegativeButton("বাতিল", null)
-            .setPositiveButton("ডেমো চালিয়ে যান", null)
-            .create()
-        dialog.setOnShowListener {
-            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                val accountNo = account.text.toString().trim()
-                val value = amount.text.toString().trim().toDoubleOrNull()
-                if (provider.selectedItemPosition == 0 || accountNo.length < 5 || value == null || value <= 0) {
-                    Toast.makeText(this, "বিলার, সঠিক নম্বর ও টাকার পরিমাণ দিন", Toast.LENGTH_LONG).show()
-                } else {
-                    val record = "$service • ${provider.selectedItem} • $accountNo • ৳${"%.2f".format(value)} • ডেমো"
-                    demoTransactions.add(0, record)
-                    dialog.dismiss()
-                    android.app.AlertDialog.Builder(this)
-                        .setTitle("ডেমো অনুরোধ তৈরি হয়েছে")
-                        .setMessage("আপনার পরীক্ষামূলক অনুরোধটি ইতিহাসে যোগ হয়েছে।\n\nকোনো বাস্তব পেমেন্ট সম্পন্ন হয়নি এবং কোনো টাকা কাটা হয়নি।")
-                        .setPositiveButton("ইতিহাস দেখুন") { _, _ -> showHistory() }
-                        .setNegativeButton("ঠিক আছে", null)
-                        .show()
-                }
-            }
-        }
-        dialog.show()
+        showInfo("সেবা এখনো চালু নয়", "$service-এর অনুমোদিত বিলার API ও পেমেন্ট যাচাই সংযোগ সম্পন্ন হলে এই সেবা চালু হবে। এখন কোনো বিল জমা বা টাকা কাটা হবে না।")
     }
 
     private fun showHistory() {
-        val message = if (demoTransactions.isEmpty()) {
-            "এখনো কোনো ডেমো অনুরোধ নেই। বিল পেমেন্টের ফর্ম থেকে একটি নমুনা অনুরোধ তৈরি করলে এখানে দেখা যাবে।"
-        } else {
-            demoTransactions.mapIndexed { index, item -> "${index + 1}. $item" }.joinToString("\n\n")
-        }
-        android.app.AlertDialog.Builder(this)
-            .setTitle("লেনদেনের ইতিহাস • ডেমো")
-            .setMessage(message + "\n\nনোট: এগুলো পরীক্ষামূলক রেকর্ড, বাস্তব লেনদেন নয়।")
-            .setPositiveButton("বন্ধ করুন", null)
-            .show()
+        showInfo("লেনদেনের ইতিহাস", "নিরাপদ অ্যাকাউন্ট ও সার্ভার-সাইড লেজার প্রস্তুত হলে যাচাইকৃত লেনদেন এখানে দেখা যাবে।")
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.statusBarColor = green
@@ -236,11 +174,11 @@ class MainActivity : Activity() {
             background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(0,135,91), Color.rgb(0,75,65))).apply { cornerRadius = dp(24).toFloat() }
         }
         val balanceTop = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        balanceTop.addView(text("মোট ব্যালেন্স", 14f, Color.rgb(220,245,235)), LinearLayout.LayoutParams(0,-2,1f))
+        balanceTop.addView(text("BilPay ওয়ালেট", 14f, Color.rgb(220,245,235)), LinearLayout.LayoutParams(0,-2,1f))
         balanceTop.addView(text("◎  নিরাপদ ওয়ালেট", 11f, Color.WHITE, true))
         balance.addView(balanceTop)
-        balance.addView(text("৳ ০.০০", 32f, white, true).apply { setPadding(0,dp(12),0,dp(4)) })
-        balance.addView(text("ডেমো ব্যালেন্স • বাস্তব টাকা নয়", 11f, Color.rgb(220,245,235)))
+        balance.addView(text("ওয়ালেট চালুর প্রস্তুতি চলছে", 21f, white, true).apply { setPadding(0,dp(12),0,dp(4)) })
+        balance.addView(text("পরিচয় যাচাই ও অনুমোদিত অংশীদার যুক্ত হলে চালু হবে", 11f, Color.rgb(220,245,235)))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0,dp(18),0,0) }
         listOf("＋\nঅ্যাড মানি", "↗\nসেন্ড মানি", "⇄\nট্রান্সফার", "▦\nQR পে").forEach { item ->
             val v = TextView(this).apply { text = item; textSize = 12f; setTextColor(white); gravity = Gravity.CENTER; setPadding(dp(5),dp(9),dp(5),dp(9)); background = shape(Color.argb(45,255,255,255),12); setOnClickListener { action(item.substringAfter('\n')) } }
@@ -258,7 +196,7 @@ class MainActivity : Activity() {
             providers.addView(tile, LinearLayout.LayoutParams(0,dp(62),1f).apply { marginEnd=dp(7) })
         }
         page.addView(providers)
-        val note = TextView(this).apply { text = "🔒  আপনার লেনদেনের নিরাপত্তাই আমাদের অগ্রাধিকার\n\nBilPay এখন ডেমো সংস্করণ। বাস্তব পেমেন্ট চালুর আগে অনুমোদিত পার্টনার API ও নিরাপত্তা যাচাই প্রয়োজন।"; textSize=12f; setTextColor(muted); setPadding(dp(16),dp(16),dp(16),dp(16)); background=shape(Color.rgb(233,244,239),16) }
+        val note = TextView(this).apply { text = "🔒  আপনার লেনদেনের নিরাপত্তাই আমাদের অগ্রাধিকার\n\nঅনুমোদিত পার্টনার API, পরিচয় যাচাই ও নিরাপত্তা ব্যবস্থা সম্পন্ন না হওয়া পর্যন্ত বাস্তব লেনদেন বন্ধ থাকবে।"; textSize=12f; setTextColor(muted); setPadding(dp(16),dp(16),dp(16),dp(16)); background=shape(Color.rgb(233,244,239),16) }
         page.addView(note, LinearLayout.LayoutParams(-1,-2).apply { topMargin=dp(22) })
         apiStatus = text("API: সার্ভার URL সেট করা হয়নি", 11f, muted).apply { setPadding(dp(4),dp(10),dp(4),dp(4)) }
         page.addView(apiStatus)
