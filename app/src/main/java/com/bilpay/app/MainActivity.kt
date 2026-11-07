@@ -190,7 +190,7 @@ class MainActivity : Activity() {
         }
         form.addView(target)
         form.addView(amount)
-        AlertDialog.Builder(this)
+        android.app.AlertDialog.Builder(this)
             .setTitle(title)
             .setMessage("ডেমো ব্যালেন্স: ৳$current\\nশুধু পরীক্ষার জন্য—বাস্তব টাকা কাটবে না বা পাঠানো হবে না।")
             .setView(form)
