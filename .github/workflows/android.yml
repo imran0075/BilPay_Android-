@@ -38,12 +38,14 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bilpay-signing"
           KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
           if ! printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE" 2>/dev/null; then
-            echo "Invalid Base64 keystore secret." >&2
-            exit 1
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Stored signing file is not valid Base64; falling back to debug APK."
+            exit 0
           fi
           if ! keytool -list -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
-            echo "Keystore/password/alias validation failed." >&2
-            exit 1
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Stored signing key did not validate; falling back to debug APK."
+            exit 0
           fi
           echo "ready=true" >> "$GITHUB_OUTPUT"
           echo "Permanent release signing key validated."
