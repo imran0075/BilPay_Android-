@@ -100,7 +100,7 @@ class MainActivity : Activity() {
                     dialog.dismiss()
                     android.app.AlertDialog.Builder(this)
                         .setTitle("ডেমো অনুরোধ তৈরি হয়েছে")
-                        .setMessage("আপনার পরীক্ষামূলক অনুরোধটি ইতিহাসে যোগ হয়েছে।\\n\\nকোনো বাস্তব পেমেন্ট সম্পন্ন হয়নি এবং কোনো টাকা কাটা হয়নি।")
+                        .setMessage("আপনার পরীক্ষামূলক অনুরোধটি ইতিহাসে যোগ হয়েছে।\n\nকোনো বাস্তব পেমেন্ট সম্পন্ন হয়নি এবং কোনো টাকা কাটা হয়নি।")
                         .setPositiveButton("ইতিহাস দেখুন") { _, _ -> showHistory() }
                         .setNegativeButton("ঠিক আছে", null)
                         .show()
@@ -114,11 +114,11 @@ class MainActivity : Activity() {
         val message = if (demoTransactions.isEmpty()) {
             "এখনো কোনো ডেমো অনুরোধ নেই। বিল পেমেন্টের ফর্ম থেকে একটি নমুনা অনুরোধ তৈরি করলে এখানে দেখা যাবে।"
         } else {
-            demoTransactions.mapIndexed { index, item -> "${index + 1}. $item" }.joinToString("\\n\\n")
+            demoTransactions.mapIndexed { index, item -> "${index + 1}. $item" }.joinToString("\n\n")
         }
         android.app.AlertDialog.Builder(this)
             .setTitle("লেনদেনের ইতিহাস • ডেমো")
-            .setMessage(message + "\\n\\nনোট: এগুলো পরীক্ষামূলক রেকর্ড, বাস্তব লেনদেন নয়।")
+            .setMessage(message + "\n\nনোট: এগুলো পরীক্ষামূলক রেকর্ড, বাস্তব লেনদেন নয়।")
             .setPositiveButton("বন্ধ করুন", null)
             .show()
     }
