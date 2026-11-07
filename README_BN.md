@@ -20,3 +20,5 @@ BilPay-এর প্রাথমিক Android demo project।
 - API backend-এর ফাইল `backend/` ফোল্ডারে আছে। Render-এ নতুন Web Service তৈরি করে Root Directory `backend`, Build Command `pip install -r requirements.txt`, Start Command `uvicorn app.main:app --host 0.0.0.0 --port $PORT` দিন। বিস্তারিত `backend/README_BN.md`-এ।
 - API সার্ভার deploy হলে GitHub repository Settings → Secrets and variables → Actions → Variables-এ `BILPAY_API_BASE_URL` নামে variable তৈরি করে Render-এর HTTPS URL দিন (শেষে `/` দেবেন না)। এরপর নতুন APK build হলে অ্যাপ `/health` endpoint পরীক্ষা করে API status দেখাবে।
 - বর্তমানে API ভিত্তি প্রস্তুত; কোনো live payment provider যুক্ত হয়নি।
+
+<!-- Build trigger: signing secrets updated; verify release signing -->
