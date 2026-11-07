@@ -17,7 +17,8 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
-        val apiBaseUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?) ?: ""
+        val configuredApiUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?)?.trim()
+        val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-api-5b57.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
