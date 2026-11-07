@@ -1,4 +1,4 @@
-name: Build BilPay Android APK # refreshed after permanent signing key setup
+name: Build BilPay Android APK # refreshed after permanent signing key setup - retry with current secrets
 on:
   push:
     branches: [ "main" ]
