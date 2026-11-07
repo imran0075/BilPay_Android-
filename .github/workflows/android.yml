@@ -1,5 +1,5 @@
 # signing-secret-check-2026-11-07
-name: Build BilPay Android APK # refreshed after permanent signing key setup - retry after Base64 secret refresh
+name: Build BilPay Android APK # keep debug signing identity stable across builds
 on:
   push:
     branches: [ "main" ]
@@ -21,6 +21,13 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
+      # Persist the Android debug keystore so future debug APKs can update
+      # the previously installed BilPay debug build instead of changing signature.
+      - name: Restore stable BilPay debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: bilpay-debug-keystore-v1
       - name: Prepare permanent signing key
         id: signing
         shell: bash
@@ -38,7 +45,6 @@ jobs:
           fi
           mkdir -p "$RUNNER_TEMP/bilpay-signing"
           KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
-          # GitHub Secrets may contain wrapped Base64 copied from a terminal; strip whitespace first.
           if ! printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE" 2>/dev/null; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Stored signing file is not valid Base64; falling back to debug APK."
