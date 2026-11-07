@@ -121,7 +121,7 @@ class MainActivity : Activity() {
             label.contains("ইন্টারনেট") || label.contains("টিভি") || label.contains("টেলিফোন") ||
             label.contains("শিক্ষা") || label.contains("হাসপাতাল") || label.contains("সরকারি") ||
             label.contains("অন্যান্য") || label.contains("রিচার্জ") ->
-                "এই বিলারের অনুমোদিত API এখনো সংযুক্ত হয়নি। সংযোগ সম্পন্ন হলে সেবাটি চালু হবে।"
+                "BilPay অ্যাপের সার্ভার API এবং এই বিলারের পেমেন্ট API আলাদা। এই বিলারের অফিসিয়াল API/চুক্তি এখনো যুক্ত হয়নি, তাই আপাতত বিল জমা বা টাকা কাটা যাবে না।"
             label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") ||
             label.contains("Upay") || label.contains("মানি") || label.contains("ট্রান্সফার") ||
             label.contains("QR") || label.contains("অ্যাড") ->
