@@ -232,6 +232,7 @@ class MainActivity : Activity() {
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12),0,0,0) }
         brand.addView(text("BilPay", 23f, dark, true))
         brand.addView(text("ONE APP • ALL SERVICES", 10f, muted, true))
+        brand.addView(text("স্মার্ট পেমেন্ট, এক জায়গায়", 11f, muted))
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         header.addView(TextView(this).apply { text = "◉"; textSize = 25f; setTextColor(green); gravity = Gravity.CENTER; setOnClickListener { action("নোটিফিকেশন") } })
         page.addView(header)
@@ -303,17 +304,49 @@ class MainActivity : Activity() {
         }.start()
     }
     private fun section(parent: LinearLayout, title: String, subtitle: String) {
-        parent.addView(text(title,18f,dark,true).apply { setPadding(0,dp(24),0,dp(3)) })
-        parent.addView(text(subtitle,11f,muted).apply { setPadding(0,0,0,dp(12)) })
+        val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(25), 0, dp(12)) }
+        wrap.addView(text(title, 18f, dark, true))
+        wrap.addView(text(subtitle, 11f, muted).apply { setPadding(0, dp(3), 0, 0) })
+        parent.addView(wrap)
     }
     private fun grid(parent: LinearLayout, items: List<String>) {
-        for (start in items.indices step 4) {
-            val row = LinearLayout(this).apply { orientation=LinearLayout.HORIZONTAL }
-            for (i in start until minOf(start+4,items.size)) {
-                val item=items[i]
-                val tile=TextView(this).apply { text=item; textSize=11f; gravity=Gravity.CENTER; setTextColor(dark); setPadding(dp(3),dp(8),dp(3),dp(8)); background=shape(white,14); elevation=dp(1).toFloat(); setOnClickListener { action(item.substringAfter('\n')) } }
-                row.addView(tile,LinearLayout.LayoutParams(0,dp(76),1f).apply { marginEnd=dp(7); bottomMargin=dp(8) })
+        for (start in items.indices step 3) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (i in start until minOf(start + 3, items.size)) {
+                val item = items[i]
+                val parts = item.split("\\n", limit = 2)
+                val tile = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(dp(5), dp(12), dp(5), dp(10))
+                    background = GradientDrawable().apply {
+                        setColor(Color.WHITE)
+                        cornerRadius = dp(17).toFloat()
+                        setStroke(dp(1), Color.rgb(232, 239, 235))
+                    }
+                    elevation = dp(2).toFloat()
+                    addView(TextView(this@MainActivity).apply {
+                        text = parts[0]
+                        textSize = 23f
+                        gravity = Gravity.CENTER
+                    }, LinearLayout.LayoutParams(-1, dp(34)))
+                    addView(TextView(this@MainActivity).apply {
+                        text = parts.getOrElse(1) { item }
+                        textSize = 10.5f
+                        setTextColor(dark)
+                        gravity = Gravity.CENTER
+                        maxLines = 2
+                        setTypeface(null, Typeface.BOLD)
+                        setPadding(0, dp(5), 0, 0)
+                    }, LinearLayout.LayoutParams(-1, -2))
+                    setOnClickListener { action(parts.getOrElse(1) { item }) }
+                }
+                row.addView(tile, LinearLayout.LayoutParams(0, dp(88), 1f).apply {
+                    marginEnd = dp(8)
+                    bottomMargin = dp(9)
+                })
             }
+            while (row.childCount < 3) row.addView(View(this), LinearLayout.LayoutParams(0, dp(88), 1f).apply { marginEnd = dp(8) })
             parent.addView(row)
         }
     }
