@@ -314,7 +314,7 @@ class MainActivity : Activity() {
             val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
             for (i in start until minOf(start + 3, items.size)) {
                 val item = items[i]
-                val parts = item.split("\\n", limit = 2)
+                val parts = item.split("\n", limit = 2)
                 val tile = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
