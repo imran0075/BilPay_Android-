@@ -56,10 +56,10 @@ jobs:
           BILPAY_STORE_PASSWORD: ${{ secrets.BILPAY_STORE_PASSWORD }}
           BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
           BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="${{ vars.BILPAY_API_BASE_URL }}" assembleRelease
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
       - name: Build debug APK when permanent key is not configured
         if: steps.signing.outputs.ready != 'true'
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="${{ vars.BILPAY_API_BASE_URL }}" assembleDebug
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleDebug
       - name: Verify and identify APK
         id: apk
         shell: bash
