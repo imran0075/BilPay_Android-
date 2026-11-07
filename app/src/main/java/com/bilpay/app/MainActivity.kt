@@ -243,8 +243,9 @@ class MainActivity : Activity() {
         balanceTop.addView(text("BilPay ওয়ালেট", 14f, Color.rgb(220,245,235)), LinearLayout.LayoutParams(0,-2,1f))
         balanceTop.addView(text("◎  নিরাপদ ওয়ালেট", 11f, Color.WHITE, true))
         balance.addView(balanceTop)
-        balance.addView(text("ওয়ালেট চালুর প্রস্তুতি চলছে", 21f, white, true).apply { setPadding(0,dp(12),0,dp(4)) })
-        balance.addView(text("পরিচয় যাচাই ও অনুমোদিত অংশীদার যুক্ত হলে চালু হবে", 11f, Color.rgb(220,245,235)))
+        val demoBalance = getSharedPreferences("bilpay_demo", MODE_PRIVATE).getLong("balance", 50000L)
+        balance.addView(text("৳$demoBalance", 26f, white, true).apply { setPadding(0,dp(12),0,dp(4)) })
+        balance.addView(text("ডেমো ওয়ালেট • বাস্তব অর্থ নয়", 11f, Color.rgb(220,245,235)))
         val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0,dp(18),0,0) }
         listOf("＋\nঅ্যাড মানি", "↗\nসেন্ড মানি", "⇄\nট্রান্সফার", "▦\nQR পে").forEach { item ->
             val v = TextView(this).apply { text = item; textSize = 12f; setTextColor(white); gravity = Gravity.CENTER; setPadding(dp(5),dp(9),dp(5),dp(9)); background = shape(Color.argb(45,255,255,255),12); setOnClickListener { action(item.substringAfter('\n')) } }
