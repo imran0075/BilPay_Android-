@@ -23,7 +23,29 @@ class MainActivity : Activity() {
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false): TextView =
         TextView(this).apply { text = value; textSize = size; setTextColor(color); if (bold) setTypeface(null, Typeface.BOLD) }
     private fun action(label: String) {
-        Toast.makeText(this, "$label — সেবাটি শিগগিরই চালু হবে", Toast.LENGTH_SHORT).show()
+        val detail = when {
+            label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") ||
+            label.contains("ইন্টারনেট") || label.contains("টিভি") || label.contains("টেলিফোন") ||
+            label.contains("শিক্ষা") || label.contains("হাসপাতাল") || label.contains("সরকারি") ||
+            label.contains("অন্যান্য") || label.contains("আরও সেবা") ->
+                "ডেমো বিল পেমেন্ট\\n\\nএখানে বিলার নির্বাচন, গ্রাহক/অ্যাকাউন্ট নম্বর এবং বিলের পরিমাণ দেওয়ার স্ক্রিন যুক্ত হবে।\\n\\nএটি পরীক্ষামূলক প্রদর্শন—কোনো বিল জমা হবে না এবং টাকা কাটা হবে না।"
+            label.contains("রিচার্জ") ->
+                "ডেমো মোবাইল রিচার্জ\\n\\nমোবাইল নম্বর ও রিচার্জের পরিমাণ দিয়ে পরবর্তী ধাপের নমুনা দেখা যাবে।\\n\\nএটি বাস্তব রিচার্জ নয়।"
+            label.contains("মানি") || label.contains("ট্রান্সফার") || label.contains("QR") ||
+            label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") || label.contains("Upay") ->
+                "ডেমো আর্থিক সেবা\\n\\nসংশ্লিষ্ট সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। কোনো টাকা পাঠানো, গ্রহণ বা উত্তোলন করা হবে না।"
+            label.contains("হিসাব") || label.contains("লেনদেন") ->
+                "ডেমো লেনদেন ইতিহাস\\n\\nএখনো কোনো বাস্তব লেনদেন নেই। এখানে ভবিষ্যতে যাচাইকৃত লেনদেনের রসিদ ও অবস্থা দেখা যাবে।"
+            label.contains("প্রোফাইল") ->
+                "ডেমো প্রোফাইল\\n\\nBilPay ব্যবহারকারীর প্রোফাইল, পরিচয় যাচাই ও নিরাপত্তা সেটিংস এখানে থাকবে।"
+            else -> "BilPay ডেমো সংস্করণে এই স্ক্রিনটি দেখানো হচ্ছে। বাস্তব সেবা চালুর আগে প্রয়োজনীয় অনুমোদন ও API সংযোগ সম্পন্ন হবে।"
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BilPay • $label")
+            .setMessage(detail)
+            .setPositiveButton("বুঝেছি") { dialog, _ -> dialog.dismiss() }
+            .setNegativeButton("বন্ধ করুন") { dialog, _ -> dialog.dismiss() }
+            .show()
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
