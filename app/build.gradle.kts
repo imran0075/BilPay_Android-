@@ -37,7 +37,14 @@ android {
 
     buildTypes {
         getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+            // Use the stable CI debug identity only as a temporary installable fallback.
+            // A genuine production release still requires the private permanent keystore.
+            val permanentKeyConfigured = !System.getenv("BILPAY_KEYSTORE_PATH").isNullOrBlank()
+            signingConfig = if (permanentKeyConfigured) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = false
         }
     }
