@@ -125,10 +125,10 @@ class MainActivity : Activity() {
             label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") ||
             label.contains("Upay") || label.contains("মানি") || label.contains("ট্রান্সফার") ||
             label.contains("QR") || label.contains("অ্যাড") ->
-                "অফিসিয়াল merchant API, চুক্তি ও প্রয়োজনীয় অনুমোদন ছাড়া কোনো টাকা পাঠানো বা গ্রহণ করা হবে না।"
+                "BilPay সার্ভার চালু থাকলেও bKash/Nagad/Rocket/Upay-এর লেনদেন API আলাদাভাবে অনুমোদিত merchant চুক্তি ও credentials দিয়ে যুক্ত করতে হয়। সেগুলো এখনো যুক্ত হয়নি; তাই টাকা পাঠানো বা গ্রহণ বন্ধ আছে।"
             label.contains("প্রোফাইল") ->
                 "নিরাপদ লগইন ও পরিচয় যাচাই (KYC) মডিউল পরবর্তী ধাপে যুক্ত করা হবে।"
-            else -> "এই মডিউলটি প্রস্তুত করা হচ্ছে। কোনো ডেমো লেনদেন বা ভুয়া ব্যালেন্স দেখানো হবে না।"
+            else -> "এই সুবিধাটি এখনো চালু করা হয়নি। সার্ভার সংযোগ আর বাস্তব সেবাদাতার API সংযোগ এক বিষয় নয়। প্রয়োজনীয় API ও অনুমোদন যুক্ত হলে এটি চালু হবে।"
         }
         showInfo("BilPay • $label", message)
     }
