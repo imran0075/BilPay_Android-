@@ -38,7 +38,8 @@ jobs:
           fi
           mkdir -p "$RUNNER_TEMP/bilpay-signing"
           KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
-          if ! printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE" 2>/dev/null; then
+          # GitHub Secrets may contain wrapped Base64 copied from a terminal; strip whitespace first.
+          if ! printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE" 2>/dev/null; then
             echo "ready=false" >> "$GITHUB_OUTPUT"
             echo "Stored signing file is not valid Base64; falling back to debug APK."
             exit 0
