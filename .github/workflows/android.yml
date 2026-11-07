@@ -4,6 +4,12 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+
+# Serialize builds so concurrent runs cannot race to initialize the cached fallback signing key.
+concurrency:
+  group: bilpay-android-signing
+  cancel-in-progress: false
+
 permissions:
   contents: read
 jobs:
