@@ -14,6 +14,7 @@ android {
             val keystorePath = System.getenv("BILPAY_KEYSTORE_PATH")
             if (!keystorePath.isNullOrBlank()) {
                 storeFile = file(keystorePath)
+                storeType = System.getenv("BILPAY_KEYSTORE_TYPE")
                 storePassword = System.getenv("BILPAY_STORE_PASSWORD")
                 keyAlias = System.getenv("BILPAY_KEY_ALIAS")
                 keyPassword = System.getenv("BILPAY_KEY_PASSWORD")
