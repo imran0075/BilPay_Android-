@@ -4,15 +4,10 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      BILPAY_KEYSTORE_BASE64: ${{ secrets.BILPAY_KEYSTORE_BASE64 }}
-      BILPAY_STORE_PASSWORD: ${{ secrets.BILPAY_STORE_PASSWORD }}
-      BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
-      BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,42 +20,19 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Prepare and validate persistent signing key
-        if: env.BILPAY_KEYSTORE_BASE64 != ''
+      - name: Build installable debug APK
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="${{ vars.BILPAY_API_BASE_URL }}" assembleDebug
+      - name: Verify APK file
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s' "$BILPAY_KEYSTORE_BASE64" | tr -d '[:space:]' | base64 --decode > "$RUNNER_TEMP/bilpay-upload.jks"
-          test -s "$RUNNER_TEMP/bilpay-upload.jks"
-          keytool -list -keystore "$RUNNER_TEMP/bilpay-upload.jks" -storepass "$BILPAY_STORE_PASSWORD" -alias "$BILPAY_KEY_ALIAS" >/dev/null
-          echo "BILPAY_KEYSTORE_PATH=$RUNNER_TEMP/bilpay-upload.jks" >> "$GITHUB_ENV"
-          echo "Signing keystore decoded and validated."
-      - name: Build signed release APK
-        if: env.BILPAY_KEYSTORE_BASE64 != ''
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="${{ vars.BILPAY_API_BASE_URL }}" assembleRelease
-      - name: Build debug APK (temporary until signing secrets are configured)
-        if: env.BILPAY_KEYSTORE_BASE64 == ''
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="${{ vars.BILPAY_API_BASE_URL }}" assembleDebug
-      - name: Upload signed APK
-        if: env.BILPAY_KEYSTORE_BASE64 != ''
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          ls -lh "$APK"
+      - name: Upload BilPay APK
         uses: actions/upload-artifact@v4
         with:
-          name: BilPay-Android-Signed-APK
-          path: app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-      - name: Upload temporary debug APK
-        if: env.BILPAY_KEYSTORE_BASE64 == ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: BilPay-Android-APK-Temporary
+          name: BilPay-Android-Debug-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-      - name: Publish signed latest APK release
-        if: env.BILPAY_KEYSTORE_BASE64 != ''
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: bilpay-latest
-          name: BilPay latest update
-          prerelease: true
-          make_latest: false
-          files: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
