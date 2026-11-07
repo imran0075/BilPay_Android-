@@ -110,9 +110,9 @@ jobs:
           BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
           BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
         run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
-      - name: Build debug APK when permanent key is not configured
+      - name: Build installable release variant with stable fallback identity
         if: steps.signing.outputs.ready != 'true'
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleDebug
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
       - name: Verify and identify APK
         id: apk
         shell: bash
@@ -122,8 +122,8 @@ jobs:
             APK="app/build/outputs/apk/release/app-release.apk"
             echo "kind=release" >> "$GITHUB_OUTPUT"
           else
-            APK="app/build/outputs/apk/debug/app-debug.apk"
-            echo "kind=debug" >> "$GITHUB_OUTPUT"
+            APK="app/build/outputs/apk/release/app-release.apk"
+            echo "kind=release-fallback" >> "$GITHUB_OUTPUT"
           fi
           test -s "$APK"
           ls -lh "$APK"
@@ -135,11 +135,11 @@ jobs:
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
-      - name: Upload BilPay Debug APK
-        if: steps.apk.outputs.kind == 'debug'
+      - name: Upload BilPay Release APK (fallback signing)
+        if: steps.apk.outputs.kind == 'release-fallback'
         uses: actions/upload-artifact@v4
         with:
-          name: BilPay-Android-Debug-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: BilPay-Android-Release-APK-Fallback-Signing
+          path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
