@@ -25,7 +25,7 @@ android {
     buildFeatures { buildConfig = true }
 
     defaultConfig {
-        applicationId = "com.bilpay.oneapp"
+        applicationId = "com.bilpay.premium"
         minSdk = 23
         targetSdk = 35
         versionCode = 1
