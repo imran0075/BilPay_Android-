@@ -255,8 +255,8 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(12), 0, 0, 0)
         }
-        brand.addView(text("BilPay", 25f, ink, true))
-        brand.addView(text("ONE APP. EVERYDAY PAYMENTS.", 9f, soft, true))
+        brand.addView(text("BilPay Premium", 23f, ink, true))
+        brand.addView(text("PREMIUM ONE-APP EXPERIENCE", 9f, soft, true))
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         val bell = TextView(this).apply {
             text = "♧"
