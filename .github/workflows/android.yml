@@ -1,55 +1,35 @@
-# signing-secret-check-2026-11-08
-name: Build BilPay Android APK # keep debug signing identity stable across builds
+name: Build BilPay Signed Android APK
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
 
-# Serialize builds so concurrent runs cannot race to initialize the cached fallback signing key.
-concurrency:
-  group: bilpay-android-signing
-  cancel-in-progress: false
-
 permissions:
   contents: read
+
+concurrency:
+  group: bilpay-android-release
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      # Restore the cached key BEFORE creating one. If the cache is present,
-      # every build reuses the same signing identity; on a cache miss, the
-      # following step creates the initial key and actions/cache saves it.
-      - name: Restore stable BilPay debug signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: bilpay-debug-keystore-v1
-      - name: Ensure stable BilPay debug signing key exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$HOME/.android"
-          if [[ ! -s "$HOME/.android/debug.keystore" ]]; then
-            keytool -genkeypair -v \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -dname "CN=Android Debug,O=Android,C=US" \
-              -keyalg RSA -keysize 2048 -validity 10000
-          fi
-      - name: Prepare permanent signing key
+
+      - name: Validate permanent BilPay release key
         id: signing
         shell: bash
         env:
@@ -59,92 +39,47 @@ jobs:
           KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [[ -z "${KEYSTORE_B64}" || -z "${STORE_PASSWORD}" || -z "${KEY_ALIAS}" || -z "${KEY_PASSWORD}" ]]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "No complete permanent signing secrets found; building a debug APK."
-            exit 0
-          fi
-          mkdir -p "$RUNNER_TEMP/bilpay-signing"
-          KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
-          if ! printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE" 2>/dev/null; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "Stored signing file is not valid Base64; falling back to debug APK."
-            exit 0
-          fi
-          # Detect the keystore format explicitly; never print secret values.
-          STORE_TYPE=""
-          for candidate in JKS PKCS12; do
-            if keytool -list -storetype "$candidate" -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" >/dev/null 2>&1; then
-              STORE_TYPE="$candidate"
-              break
+          for name in KEYSTORE_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret for ${name}. Check all four BilPay signing secrets."
+              exit 1
             fi
           done
-          if [[ -z "$STORE_TYPE" ]]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "SIGNING_DIAGNOSIS=STORE_PASSWORD_OR_KEYSTORE_INVALID"
-            echo "Base64 decoded, but neither JKS nor PKCS12 opens with the configured store password."
-            exit 0
-          fi
-          echo "store_type=$STORE_TYPE" >> "$GITHUB_OUTPUT"
-          echo "Keystore format validated: $STORE_TYPE"
-          if ! keytool -list -storetype "$STORE_TYPE" -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null 2>&1; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "SIGNING_DIAGNOSIS=KEY_ALIAS_NOT_FOUND"
-            echo "The keystore opens, but the configured alias was not found."
-            exit 0
-          fi
-          if ! keytool -importkeystore -noprompt \
-            -srckeystore "$KEYSTORE" -srcstoretype "$STORE_TYPE" -srcstorepass "$STORE_PASSWORD" \
+          mkdir -p "$RUNNER_TEMP/bilpay-signing"
+          KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
+          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE"
+          keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" >/dev/null
+          keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+          keytool -importkeystore -noprompt \
+            -srckeystore "$KEYSTORE" -srcstoretype JKS -srcstorepass "$STORE_PASSWORD" \
             -srcalias "$KEY_ALIAS" -srckeypass "$KEY_PASSWORD" \
-            -destkeystore "$RUNNER_TEMP/bilpay-signing/key-validation.p12" -deststoretype PKCS12 \
-            -deststorepass "temporary-validation-only" -destkeypass "temporary-validation-only" \
-            >/dev/null 2>&1; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "SIGNING_DIAGNOSIS=KEY_PASSWORD_INVALID_OR_PRIVATE_KEY_UNAVAILABLE"
-            echo "The keystore and alias are valid, but the private key could not be opened with the configured key password."
-            exit 0
-          fi
-          echo "ready=true" >> "$GITHUB_OUTPUT"
-          echo "Permanent release signing key validated."
+            -destkeystore "$RUNNER_TEMP/bilpay-signing/key-check.p12" -deststoretype PKCS12 \
+            -deststorepass "temporary-validation-only" -destkeypass "temporary-validation-only" >/dev/null
+          echo "Permanent BilPay keystore, alias, and private-key password are valid."
+
       - name: Build signed release APK
-        if: steps.signing.outputs.ready == 'true'
         env:
           BILPAY_KEYSTORE_PATH: ${{ runner.temp }}/bilpay-signing/bilpay-release.jks
-          BILPAY_KEYSTORE_TYPE: ${{ steps.signing.outputs.store_type }}
+          BILPAY_KEYSTORE_TYPE: JKS
           BILPAY_STORE_PASSWORD: ${{ secrets.BILPAY_STORE_PASSWORD }}
           BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
           BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
         run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
-      - name: Build installable release variant with stable fallback identity
-        if: steps.signing.outputs.ready != 'true'
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
-      - name: Verify and identify APK
-        id: apk
+
+      - name: Verify signed APK
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "${{ steps.signing.outputs.ready }}" == "true" ]]; then
-            APK="app/build/outputs/apk/release/app-release.apk"
-            echo "kind=release" >> "$GITHUB_OUTPUT"
-          else
-            APK="app/build/outputs/apk/release/app-release.apk"
-            echo "kind=release-fallback" >> "$GITHUB_OUTPUT"
-          fi
+          APK="app/build/outputs/apk/release/app-release.apk"
           test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 3
           ls -lh "$APK"
-      - name: Upload BilPay Release APK
-        if: steps.apk.outputs.kind == 'release'
+
+      - name: Upload BilPay permanent signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: BilPay-Android-Release-APK
-          path: app/build/outputs/apk/release/app-release.apk
-          if-no-files-found: error
-          retention-days: 30
-      - name: Upload BilPay Release APK (fallback signing)
-        if: steps.apk.outputs.kind == 'release-fallback'
-        uses: actions/upload-artifact@v4
-        with:
-          name: BilPay-Android-Release-APK-Fallback-Signing
+          name: BilPay-Android-Permanent-Signed-APK
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
