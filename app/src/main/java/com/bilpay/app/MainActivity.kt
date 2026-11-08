@@ -217,64 +217,176 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = green
-        window.navigationBarColor = Color.rgb(248, 250, 249)
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setBackgroundColor(Color.rgb(248,250,249)) }
-        val scroll = ScrollView(this)
-        val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(18), dp(16), dp(18), dp(24)) }
-        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; orientation = LinearLayout.HORIZONTAL }
-        val logo = TextView(this).apply {
-            text = "B"; textSize = 25f; setTextColor(white); gravity = Gravity.CENTER; setTypeface(null, Typeface.BOLD)
-            background = shape(green, 15); layoutParams = LinearLayout.LayoutParams(dp(48), dp(48))
+        val canvas = Color.rgb(246, 249, 247)
+        val ink = Color.rgb(18, 37, 33)
+        val soft = Color.rgb(111, 128, 120)
+        val accent = Color.rgb(0, 132, 91)
+        window.statusBarColor = canvas
+        window.navigationBarColor = Color.WHITE
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(canvas)
         }
-        header.addView(logo)
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(12),0,0,0) }
-        brand.addView(text("BilPay", 23f, dark, true))
-        brand.addView(text("ONE APP • ALL SERVICES", 10f, muted, true))
-        brand.addView(text("স্মার্ট পেমেন্ট, এক জায়গায়", 11f, muted))
+        val scroll = ScrollView(this).apply { clipToPadding = false }
+        val page = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(26))
+        }
+
+        // Brand header
+        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
+        val mark = FrameLayout(this).apply {
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(0, 157, 111), Color.rgb(0, 83, 75))).apply { cornerRadius = dp(17).toFloat() }
+            elevation = dp(5).toFloat()
+        }
+        val markText = TextView(this).apply {
+            text = "B"
+            textSize = 29f
+            typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        }
+        mark.addView(markText, FrameLayout.LayoutParams(-1, -1))
+        header.addView(mark, LinearLayout.LayoutParams(dp(52), dp(52)))
+        val brand = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), 0, 0, 0)
+        }
+        brand.addView(text("BilPay", 25f, ink, true))
+        brand.addView(text("ONE APP. EVERYDAY PAYMENTS.", 9f, soft, true))
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        header.addView(TextView(this).apply { text = "◉"; textSize = 25f; setTextColor(green); gravity = Gravity.CENTER; setOnClickListener { action("নোটিফিকেশন") } })
+        val bell = TextView(this).apply {
+            text = "♧"
+            textSize = 25f
+            gravity = Gravity.CENTER
+            setTextColor(ink)
+            background = shape(Color.WHITE, 16)
+            elevation = dp(2).toFloat()
+            setOnClickListener { action("নোটিফিকেশন") }
+        }
+        header.addView(bell, LinearLayout.LayoutParams(dp(46), dp(46)))
         page.addView(header)
+
+        val welcome = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(25), 0, dp(13))
+        }
+        welcome.addView(text("স্বাগতম 👋", 13f, soft, true))
+        welcome.addView(text("আপনার সব পেমেন্ট, এক অ্যাপে", 20f, ink, true).apply { setPadding(0, dp(4), 0, 0) })
+        page.addView(welcome)
+
+        // Premium wallet card
         val balance = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(20), dp(20), dp(20))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(0,135,91), Color.rgb(0,75,65))).apply { cornerRadius = dp(24).toFloat() }
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(21), dp(20), dp(21), dp(18))
+            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(0, 143, 101), Color.rgb(0, 79, 72))).apply { cornerRadius = dp(25).toFloat() }
+            elevation = dp(6).toFloat()
         }
         val balanceTop = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        balanceTop.addView(text("BilPay ওয়ালেট", 14f, Color.rgb(220,245,235)), LinearLayout.LayoutParams(0,-2,1f))
-        balanceTop.addView(text("◎  নিরাপদ ওয়ালেট", 11f, Color.WHITE, true))
+        balanceTop.addView(text("WALLET BALANCE", 10f, Color.rgb(207, 239, 225), true), LinearLayout.LayoutParams(0, -2, 1f))
+        balanceTop.addView(text("●  DEMO WALLET", 9f, Color.rgb(219, 247, 235), true))
         balance.addView(balanceTop)
         val demoBalance = getSharedPreferences("bilpay_demo", MODE_PRIVATE).getLong("balance", 50000L)
-        balance.addView(text("৳$demoBalance", 26f, white, true).apply { setPadding(0,dp(12),0,dp(4)) })
-        balance.addView(text("ডেমো ওয়ালেট • বাস্তব অর্থ নয়", 11f, Color.rgb(220,245,235)))
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; setPadding(0,dp(18),0,0) }
-        listOf("＋\nঅ্যাড মানি", "↗\nসেন্ড মানি", "⇄\nট্রান্সফার", "▦\nQR পে").forEach { item ->
-            val v = TextView(this).apply { text = item; textSize = 12f; setTextColor(white); gravity = Gravity.CENTER; setPadding(dp(5),dp(9),dp(5),dp(9)); background = shape(Color.argb(45,255,255,255),12); setOnClickListener { action(item.substringAfter('\n')) } }
-            actions.addView(v, LinearLayout.LayoutParams(0, dp(58), 1f).apply { marginEnd = dp(6) })
+        balance.addView(text("৳$demoBalance", 31f, Color.WHITE, true).apply {
+            setPadding(0, dp(10), 0, dp(3))
+            typeface = Typeface.create("sans-serif", Typeface.BOLD)
+        })
+        balance.addView(text("পরীক্ষামূলক ব্যালেন্স • বাস্তব অর্থ নয়", 10f, Color.rgb(211, 240, 228)))
+        val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
+        page.addView(balance, LinearLayout.LayoutParams(-1, -2))
+        page.addView(quickTitle)
+
+        val quick = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
         }
-        balance.addView(actions)
-        page.addView(balance, LinearLayout.LayoutParams(-1,-2).apply { topMargin = dp(22) })
-        section(page, "সকল বিল পরিশোধ", "সব ধরনের বিল এক জায়গায়")
+        listOf("＋" to "অ্যাড মানি", "↗" to "সেন্ড মানি", "⇄" to "ট্রান্সফার", "▦" to "QR পে").forEach { pair ->
+            val cell = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(3), dp(10), dp(3), dp(10))
+                background = shape(Color.WHITE, 17)
+                elevation = dp(2).toFloat()
+                setOnClickListener { action(pair.second) }
+            }
+            cell.addView(TextView(this).apply {
+                text = pair.first
+                textSize = 23f
+                gravity = Gravity.CENTER
+                setTextColor(accent)
+                typeface = Typeface.DEFAULT_BOLD
+            })
+            cell.addView(text(pair.second, 10f, ink, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(5), 0, 0) })
+            quick.addView(cell, LinearLayout.LayoutParams(0, dp(78), 1f).apply { marginEnd = dp(8) })
+        }
+        page.addView(quick)
+
+        section(page, "বিল পেমেন্ট", "প্রয়োজনীয় সব বিল সহজে পরিশোধ করুন")
         grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
-        section(page, "মোবাইল ব্যাংকিং", "জনপ্রিয় সেবাগুলো একসাথে")
+
+        section(page, "মোবাইল ফিন্যান্স", "এক জায়গায় জনপ্রিয় মোবাইল ব্যাংকিং")
         val providers = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         listOf("bKash","Nagad","Rocket","Upay").forEachIndexed { i, name ->
-            val c = intArrayOf(Color.rgb(220,35,105),Color.rgb(239,105,25),Color.rgb(110,42,150),Color.rgb(0,145,105))[i]
-            val tile = TextView(this).apply { text = name; textSize = 13f; setTypeface(null,Typeface.BOLD); setTextColor(c); gravity = Gravity.CENTER; background = shape(white,14); elevation = dp(2).toFloat(); setOnClickListener { action(name) } }
-            providers.addView(tile, LinearLayout.LayoutParams(0,dp(62),1f).apply { marginEnd=dp(7) })
+            val colors = intArrayOf(Color.rgb(220,35,105), Color.rgb(239,105,25), Color.rgb(110,42,150), Color.rgb(0,145,105))
+            val tile = TextView(this).apply {
+                text = name
+                textSize = 12f
+                typeface = Typeface.create("sans-serif", Typeface.BOLD)
+                setTextColor(colors[i])
+                gravity = Gravity.CENTER
+                background = shape(Color.WHITE, 14)
+                elevation = dp(2).toFloat()
+                setOnClickListener { action(name) }
+            }
+            providers.addView(tile, LinearLayout.LayoutParams(0, dp(58), 1f).apply { marginEnd = dp(7) })
         }
         page.addView(providers)
-        val note = TextView(this).apply { text = "🔒  আপনার লেনদেনের নিরাপত্তাই আমাদের অগ্রাধিকার\n\nঅনুমোদিত পার্টনার API, পরিচয় যাচাই ও নিরাপত্তা ব্যবস্থা সম্পন্ন না হওয়া পর্যন্ত বাস্তব লেনদেন বন্ধ থাকবে।"; textSize=12f; setTextColor(muted); setPadding(dp(16),dp(16),dp(16),dp(16)); background=shape(Color.rgb(233,244,239),16) }
-        page.addView(note, LinearLayout.LayoutParams(-1,-2).apply { topMargin=dp(22) })
-        apiStatus = text("API: সার্ভার URL সেট করা হয়নি", 11f, muted).apply { setPadding(dp(4),dp(10),dp(4),dp(4)) }
+
+        val safety = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(15), dp(14), dp(15), dp(14))
+            background = shape(Color.rgb(231, 243, 237), 17)
+        }
+        safety.addView(text("🔒", 21f, accent))
+        val safetyCopy = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), 0, 0, 0)
+            addView(text("নিরাপত্তা সবার আগে", 12f, ink, true))
+            addView(text("অনুমোদিত API যুক্ত না হওয়া পর্যন্ত বাস্তব লেনদেন বন্ধ।", 10f, soft))
+        }
+        safety.addView(safetyCopy)
+        page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
+        apiStatus = text("API: সংযোগ পরীক্ষা হচ্ছে…", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
         checkApiConnection()
+
         scroll.addView(page)
-        root.addView(scroll, LinearLayout.LayoutParams(-1,0,1f))
-        val nav = LinearLayout(this).apply { gravity=Gravity.CENTER; setPadding(dp(8),dp(10),dp(8),dp(10)); setBackgroundColor(white) }
-        listOf("⌂\nহোম","▣\nসেবা","◷\nহিসাব","●\nপ্রোফাইল").forEach { item ->
-            val v = TextView(this).apply { text=item; gravity=Gravity.CENTER; textSize=11f; setTextColor(if(item.startsWith("⌂")) green else muted); setOnClickListener { action(item.substringAfter('\n')) } }
-            nav.addView(v,LinearLayout.LayoutParams(0,dp(48),1f))
+        root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
+        val nav = LinearLayout(this).apply {
+            gravity = Gravity.CENTER
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+            setBackgroundColor(Color.WHITE)
+            elevation = dp(12).toFloat()
+        }
+        listOf("⌂" to "হোম", "▣" to "সেবা", "◷" to "হিসাব", "●" to "প্রোফাইল").forEachIndexed { index, pair ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setOnClickListener { action(pair.second) }
+            }
+            item.addView(TextView(this).apply {
+                text = pair.first
+                textSize = 20f
+                gravity = Gravity.CENTER
+                setTextColor(if (index == 0) accent else soft)
+            })
+            item.addView(text(pair.second, 10f, if (index == 0) accent else soft, index == 0).apply { gravity = Gravity.CENTER })
+            nav.addView(item, LinearLayout.LayoutParams(0, dp(48), 1f))
         }
         root.addView(nav)
         setContentView(root)
