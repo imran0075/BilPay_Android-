@@ -27,8 +27,14 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      # Create the standard Android debug keystore before cache restore/save,
-      # so the first run has a real file to persist for subsequent builds.
+      # Restore the cached key BEFORE creating one. If the cache is present,
+      # every build reuses the same signing identity; on a cache miss, the
+      # following step creates the initial key and actions/cache saves it.
+      - name: Restore stable BilPay debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: bilpay-debug-keystore-v1
       - name: Ensure stable BilPay debug signing key exists
         shell: bash
         run: |
@@ -43,13 +49,6 @@ jobs:
               -dname "CN=Android Debug,O=Android,C=US" \
               -keyalg RSA -keysize 2048 -validity 10000
           fi
-      # Persist the Android debug keystore so future debug APKs can update
-      # the previously installed BilPay debug build instead of changing signature.
-      - name: Restore stable BilPay debug signing key
-        uses: actions/cache@v4
-        with:
-          path: ~/.android/debug.keystore
-          key: bilpay-debug-keystore-v1
       - name: Prepare permanent signing key
         id: signing
         shell: bash
