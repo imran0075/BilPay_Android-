@@ -45,9 +45,33 @@ jobs:
               exit 1
             fi
           done
+
+          # Diagnose encoding without ever printing the secret itself.
+          CLEAN_B64="$(printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]')"
+          B64_LENGTH="${#CLEAN_B64}"
+          echo "Keystore Base64 character count: $B64_LENGTH"
+          if (( B64_LENGTH == 0 )); then
+            echo "::error::The keystore secret is empty after whitespace removal."
+            exit 1
+          fi
+          if [[ ! "$CLEAN_B64" =~ ^[A-Za-z0-9+/]*={0,2}$ ]]; then
+            echo "::error::The keystore secret contains characters outside standard Base64. Re-copy the complete .jks.base64 content."
+            exit 1
+          fi
+          if (( B64_LENGTH % 4 != 0 )); then
+            echo "::error::The keystore Base64 length is not divisible by 4; the GitHub Secret is truncated or incomplete."
+            exit 1
+          fi
+
           mkdir -p "$RUNNER_TEMP/bilpay-signing"
           KEYSTORE="$RUNNER_TEMP/bilpay-signing/bilpay-release.jks"
-          printf '%s' "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE"
+          printf '%s' "$CLEAN_B64" | base64 --decode > "$KEYSTORE"
+          DECODED_SIZE="$(wc -c < "$KEYSTORE" | tr -d '[:space:]')"
+          echo "Decoded keystore byte count: $DECODED_SIZE"
+          if (( DECODED_SIZE < 1000 )); then
+            echo "::error::Decoded keystore is unexpectedly small; the GitHub Secret may be incomplete."
+            exit 1
+          fi
           keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" >/dev/null
           keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
           keytool -importkeystore -noprompt \
