@@ -8,21 +8,21 @@
         android:fillColor="#FFFFFF"
         android:pathData="M0,0h108v108h-108z" />
 
-    <!-- Compact centered 3D metallic B only -->
+    <!-- Compact centered 3D metallic red B only -->
     <path
-        android:fillColor="#754000"
+        android:fillColor="#650018"
         android:pathData="M39,27h19c15,0 23,7 23,19 0,7 -3,12 -9,15 8,3 12,9 12,17 0,13 -10,20 -26,20h-19z" />
     <path
-        android:fillColor="#C47A12"
+        android:fillColor="#C00032"
         android:pathData="M35,23h19c15,0 23,7 23,19 0,7 -3,12 -9,15 8,3 12,9 12,17 0,13 -10,20 -26,20h-19z" />
     <path
-        android:fillColor="#FFE39A"
+        android:fillColor="#FFB4C2"
         android:pathData="M35,23h19c11,0 18,4 21,11 -5,-4 -11,-6 -19,-6h-13v61h-8z" />
     <path
-        android:fillColor="#F6BD4B"
+        android:fillColor="#F04468"
         android:pathData="M39,28h15c12,0 18,5 18,14 0,7 -4,11 -11,14 9,3 14,8 14,17 0,11 -8,17 -23,17h-13z" />
     <path
-        android:fillColor="#D88B1C"
+        android:fillColor="#A9002D"
         android:pathData="M57,29c9,1 14,5 14,13 0,7 -4,11 -10,14 9,3 14,8 14,17 0,10 -7,16 -19,17 8,-3 12,-8 12,-16 0,-8 -4,-13 -12,-16 6,-4 9,-8 9,-15 0,-6 -3,-11 -8,-14z" />
 
     <!-- White inner openings define the B -->
