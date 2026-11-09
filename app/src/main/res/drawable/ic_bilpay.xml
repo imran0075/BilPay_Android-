@@ -4,13 +4,49 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Deep blue premium app tile -->
     <path
-        android:fillColor="#005B4D"
-        android:pathData="M0,0h108v108h-108z" />
+        android:fillColor="#073DBB"
+        android:pathData="M22,0h64a22,22 0,0 1,22 22v64a22,22 0,0 1,-22 22h-64a22,22 0,0 1,-22 -22v-64a22,22 0,0 1,22 -22z" />
     <path
-        android:fillColor="#009B70"
-        android:pathData="M54,8a46,46 0,1 0,0.1 0z" />
+        android:fillColor="#0878E8"
+        android:pathData="M22,0h64a22,22 0,0 1,22 22v8c-22,20 -48,31 -78,34 -11,1 -21,0 -30,-2v-38a22,22 0,0 1,22 -24z" />
+    <!-- Bold white B monogram -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M35,27h27c13,0 21,7 21,18 0,7 -4,12 -10,15 8,2 13,8 13,17 0,13 -10,21 -25,21h-26zM52,42v13h9c5,0 8,-2 8,-7 0,-4 -3,-6 -8,-6zM52,68v15h10c6,0 9,-3 9,-8 0,-5 -3,-7 -9,-7z" />
+        android:pathData="M29,17h29c17,0 27,9 27,23 0,9 -4,15 -12,19 10,3 16,10 16,21 0,16 -12,25 -31,25h-29z" />
+    <path
+        android:fillColor="#073DBB"
+        android:pathData="M47,32v20h10c7,0 11,-3 11,-10 0,-7 -4,-10 -11,-10z" />
+    <path
+        android:fillColor="#073DBB"
+        android:pathData="M47,66v22h12c8,0 13,-4 13,-11 0,-7 -5,-11 -13,-11z" />
+    <!-- Golden motion/payment swoosh -->
+    <path
+        android:fillColor="#FFC400"
+        android:pathData="M7,75c23,-12 50,-20 79,-28 7,-2 13,-5 18,-9 -7,13 -18,21 -34,27 -24,9 -45,16 -63,27 4,-7 9,-12 16,-17z" />
+    <path
+        android:fillColor="#FF8A00"
+        android:pathData="M7,75c23,-12 50,-20 79,-28 7,-2 13,-5 18,-9 -4,7 -10,13 -18,17 -27,9 -53,18 -79,32 0,-4 0,-8 0,-12z" />
+    <!-- Digital payment signal -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M75,79c4,4 4,10 0,14" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M82,75c7,7 7,16 0,23" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M89,71c10,10 10,23 0,31" />
+    <!-- Small digital pixels -->
+    <path android:fillColor="#39D5FF" android:pathData="M12,17h7v7h-7zM20,9h5v5h-5zM10,29h5v5h-5z" />
 </vector>
