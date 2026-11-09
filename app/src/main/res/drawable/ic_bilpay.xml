@@ -4,33 +4,32 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#061A43" android:pathData="M0,0h108v108h-108z"/>
-    <path android:fillColor="#0B3475" android:pathData="M0,0h108v54c-25,10 -55,11 -108,2z"/>
-    <path android:fillColor="#12BFF2" android:pathData="M9,40c19,-17 43,-26 78,-28 -22,8 -42,18 -59,33 -7,1 -13,-1 -19,-5z"/>
-    <path android:fillColor="#FFC247" android:pathData="M18,48c21,-15 44,-24 78,-29 -18,10 -37,20 -53,34 -9,2 -17,0 -25,-5z"/>
+    <path
+        android:fillColor="#071A3B"
+        android:pathData="M0,0h108v108h-108z" />
 
-    <!-- 3D metallic flying B: deep extrusion and cast shadow -->
-    <path android:fillColor="#5A3100" android:pathData="M38,16h22c17,0 26,7 26,19 0,7 -4,12 -10,15 9,3 14,9 14,18 0,14 -11,21 -29,21h-23z"/>
-    <path android:fillColor="#A85B08" android:pathData="M36,14h22c17,0 26,7 26,19 0,7 -4,12 -10,15 9,3 14,9 14,18 0,14 -11,21 -29,21h-23z"/>
-    <!-- bright upper bevel -->
-    <path android:fillColor="#FFF1B8" android:pathData="M36,14h22c12,0 20,4 24,12 -8,-5 -16,-7 -25,-7h-14v62h-7z"/>
-    <!-- gold face highlight -->
-    <path android:fillColor="#FFD978" android:pathData="M39,17h18c15,0 23,6 23,16 0,6 -3,10 -9,13 8,3 13,8 13,17 0,12 -10,18 -26,18h-19z"/>
-    <!-- metallic side facets -->
-    <path android:fillColor="#D78A18" android:pathData="M58,18c13,0 20,5 20,15 0,7 -4,11 -11,14 10,3 15,9 15,18 0,13 -10,19 -27,19h-5c14,-3 21,-9 21,-19 0,-8 -5,-13 -14,-16 7,-4 10,-8 10,-15 0,-8 -4,-13 -9,-16z"/>
-    <path android:fillColor="#39D8FF" android:pathData="M36,14h4v68h-4z"/>
-    <!-- inner counters create the B shape -->
-    <path android:fillColor="#09285B" android:pathData="M49,25v17h8c7,0 11,-3 11,-9 0,-5 -4,-8 -11,-8z"/>
-    <path android:fillColor="#09285B" android:pathData="M49,53v21h9c8,0 12,-3 12,-10 0,-7 -4,-11 -12,-11z"/>
-    <!-- specular glints -->
-    <path android:fillColor="#FFFFFF" android:pathData="M43,20h4v10h-4zM43,35h4v5h-4z"/>
-    <path android:fillColor="#39D8FF" android:pathData="M17,17h5v5h-5zM24,10h4v4h-4zM12,27h4v4h-4z"/>
+    <!-- Compact centered 3D metallic B only -->
+    <path
+        android:fillColor="#754000"
+        android:pathData="M39,27h19c15,0 23,7 23,19 0,7 -3,12 -9,15 8,3 12,9 12,17 0,13 -10,20 -26,20h-19z" />
+    <path
+        android:fillColor="#C47A12"
+        android:pathData="M35,23h19c15,0 23,7 23,19 0,7 -3,12 -9,15 8,3 12,9 12,17 0,13 -10,20 -26,20h-19z" />
+    <path
+        android:fillColor="#FFE39A"
+        android:pathData="M35,23h19c11,0 18,4 21,11 -5,-4 -11,-6 -19,-6h-13v61h-8z" />
+    <path
+        android:fillColor="#F6BD4B"
+        android:pathData="M39,28h15c12,0 18,5 18,14 0,7 -4,11 -11,14 9,3 14,8 14,17 0,11 -8,17 -23,17h-13z" />
+    <path
+        android:fillColor="#D88B1C"
+        android:pathData="M57,29c9,1 14,5 14,13 0,7 -4,11 -10,14 9,3 14,8 14,17 0,10 -7,16 -19,17 8,-3 12,-8 12,-16 0,-8 -4,-13 -12,-16 6,-4 9,-8 9,-15 0,-6 -3,-11 -8,-14z" />
 
-    <!-- BilPay wordmark -->
-    <path android:fillColor="#FFFFFF" android:pathData="M16,91h4v10h-4zM16,86h4v3h-4z M24,91h4v10h-4zM24,86h4v3h-4z M32,91h4v10h-4zM32,86h4v3h-4z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M41,91h4v10h-4zM41,91c0,-4 9,-5 9,1v9h-4v-8c0,-2 -5,-2 -5,1z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M54,91h4v10h-4zM54,91c0,-4 10,-5 10,1 0,5 -6,6 -10,3v-3c3,2 6,2 6,0 0,-2 -6,-2 -6,0z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M68,91h4v10h-4zM68,91c0,-4 10,-5 10,1 0,5 -6,6 -10,3v-3c3,2 6,2 6,0 0,-2 -6,-2 -6,0z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M82,91h4v10h-4zM82,91c0,-4 10,-5 10,1 0,5 -6,6 -10,3v-3c3,2 6,2 6,0 0,-2 -6,-2 -6,0z"/>
-    <path android:fillColor="#FFC247" android:pathData="M95,94l5,-3 -2,7 -5,3z"/>
+    <!-- Inner openings define the B -->
+    <path
+        android:fillColor="#071A3B"
+        android:pathData="M48,34h7c7,0 10,3 10,8 0,6 -3,9 -10,9h-7z" />
+    <path
+        android:fillColor="#071A3B"
+        android:pathData="M48,61h8c8,0 12,3 12,9 0,7 -4,10 -12,10h-8z" />
 </vector>
