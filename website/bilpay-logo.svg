@@ -1,13 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="BilPay">
-  <defs>
-    <linearGradient id="red" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF6B86"/><stop offset=".38" stop-color="#E51A45"/><stop offset="1" stop-color="#A9002B"/></linearGradient>
-    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A9002B"/><stop offset="1" stop-color="#5E0018"/></linearGradient>
-    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="2.2"/><feOffset dx="2" dy="3" result="off"/><feComponentTransfer><feFuncA type="linear" slope=".28"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-  </defs>
-  <rect width="108" height="108" fill="#fff"/>
-  <g transform="translate(10 4) scale(.82)" filter="url(#shadow)">
-    <path fill="url(#edge)" fill-rule="evenodd" d="M25 14h30c21 0 34 12 34 29 0 11-6 19-16 23 13 4 21 13 21 27 0 19-16 31-39 31H25z M44 32v26h11c12 0 20-5 20-13s-7-13-20-13z M44 77v29h12c14 0 22-5 22-15s-8-14-22-14z" transform="translate(2 3)"/>
-    <path fill="url(#red)" fill-rule="evenodd" d="M18 7h30c21 0 34 12 34 29 0 11-6 19-16 23 13 4 21 13 21 27 0 19-16 31-39 31H18z M37 25v26h11c12 0 20-5 20-13S61 25 48 25z M37 70v29h12c14 0 22-5 22-15S63 70 49 70z"/>
-    <path fill="#fff" opacity=".32" d="M22 11h26c17 0 28 8 31 20-6-7-15-11-27-11H35v31h-7V18z"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="BilPay"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF526B"/><stop offset=".48" stop-color="#D30D32"/><stop offset="1" stop-color="#78001F"/></linearGradient><linearGradient id="white" x1="0" y1="0" x2=".9" y2="1"><stop offset="0" stop-color="#FFF"/><stop offset="1" stop-color="#EEEFF3"/></linearGradient><filter id="shadow" x="-30%" y="-30%" width="170%" height="170%"><feGaussianBlur in="SourceAlpha" stdDeviation="2.2"/><feOffset dx="2" dy="3" result="o"/><feComponentTransfer><feFuncA type="linear" slope=".5"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(8 -7) scale(.78)" filter="url(#shadow)"><path fill="#650018" fill-rule="evenodd" d="M18,7 H48 C69,7 82,19 82,36 C82,47 76,55 66,59 C79,63 87,72 87,86 C87,105 71,117 48,117 H18 Z M37,25 V51 H48 C60,51 68,46 68,38 C68,30 61,25 48,25 Z M37,70 V99 H49 C63,99 71,94 71,84 C71,74 63,70 49,70 Z" transform="translate(3 4)"/><path fill="url(#white)" fill-rule="evenodd" d="M18,7 H48 C69,7 82,19 82,36 C82,47 76,55 66,59 C79,63 87,72 87,86 C87,105 71,117 48,117 H18 Z M37,25 V51 H48 C60,51 68,46 68,38 C68,30 61,25 48,25 Z M37,70 V99 H49 C63,99 71,94 71,84 C71,74 63,70 49,70 Z"/><path fill="#FFF" opacity=".55" d="M22 11h26c17 0 28 8 31 20-6-7-15-11-27-11H35v31h-7V18z"/></g></svg>
