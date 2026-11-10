@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: bilpay-android-release
@@ -99,6 +99,16 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | head -n 3
           ls -lh "$APK"
+
+      - name: Publish latest signed APK for in-app updates
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: bilpay-latest
+          name: BilPay latest signed APK
+          prerelease: true
+          files: app/build/outputs/apk/release/app-release.apk
+          overwrite_files: true
+          fail_on_unmatched_files: true
 
       - name: Upload BilPay permanent signed APK
         uses: actions/upload-artifact@v4
