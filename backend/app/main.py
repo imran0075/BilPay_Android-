@@ -12,9 +12,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
+default_origins = (
+    "https://bilpay-official.onrender.com,"
+    "https://bilpay-official-site.onrender.com,"
+    "https://bilpay.com.bd,"
+    "https://www.bilpay.com.bd"
+)
 allowed_origins = [
     origin.strip()
-    for origin in os.getenv("BILPAY_ALLOWED_ORIGINS", "").split(",")
+    for origin in os.getenv("BILPAY_ALLOWED_ORIGINS", default_origins).split(",")
     if origin.strip()
 ]
 if allowed_origins:
@@ -61,6 +67,20 @@ def root():
 @app.get("/health")
 def health():
     return {"ok": True, "service": "bilpay-api"}
+
+
+@app.get("/api/v1/status")
+def api_status():
+    return {
+        "name": "BilPay",
+        "api_version": app.version,
+        "status": "operational",
+        "live_transactions_enabled": False,
+        "provider_integrations": {
+            provider["id"]: provider["status"] for provider in PROVIDERS
+        },
+        "message": "বাস্তব লেনদেন চালুর আগে অনুমোদিত পার্টনার API সংযোগ প্রয়োজন।",
+    }
 
 
 @app.get("/api/v1/services")
