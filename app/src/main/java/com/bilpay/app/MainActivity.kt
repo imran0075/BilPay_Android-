@@ -237,19 +237,12 @@ class MainActivity : Activity() {
 
         // Brand header
         val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        val mark = FrameLayout(this).apply {
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(0, 157, 111), Color.rgb(0, 83, 75))).apply { cornerRadius = dp(17).toFloat() }
-            elevation = dp(5).toFloat()
+        val mark = ImageView(this).apply {
+            setImageResource(R.drawable.ic_bilpay)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = "BilPay logo"
+            elevation = dp(4).toFloat()
         }
-        val markText = TextView(this).apply {
-            text = "B"
-            textSize = 29f
-            typeface = Typeface.create("sans-serif-black", Typeface.BOLD)
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-        }
-        mark.addView(markText, FrameLayout.LayoutParams(-1, -1))
         header.addView(mark, LinearLayout.LayoutParams(dp(52), dp(52)))
         val brand = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
