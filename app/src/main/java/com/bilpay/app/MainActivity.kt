@@ -115,6 +115,22 @@ class MainActivity : Activity() {
 
     private fun action(label: String) {
         val lower = label.lowercase()
+        if (lower == "সেবা" || lower == "আরও সেবা") {
+            showServices()
+            return
+        }
+        if (lower == "প্রোফাইল") {
+            showProfile()
+            return
+        }
+        if (lower == "সাপোর্ট" || lower == "সহায়তা") {
+            showSupport()
+            return
+        }
+        if (lower == "হোম") {
+            showInfo("BilPay Home", "আপনি BilPay-এর হোম স্ক্রিনে আছেন। সব সুবিধা আপাতত ডেমো মোডে ব্যবহার করতে পারবেন।")
+            return
+        }
         if (lower.contains("অ্যাড মানি") || lower.contains("সেন্ড মানি") ||
             lower.contains("ক্যাশ") || lower.contains("ট্রান্সফার") || lower.contains("qr") ||
             lower.contains("বিদ্যুৎ") || lower.contains("পানি") || lower.contains("গ্যাস") ||
@@ -152,6 +168,59 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun showServices() {
+        val items = arrayOf(
+            "বিদ্যুৎ বিল", "পানি বিল", "গ্যাস বিল", "ইন্টারনেট বিল",
+            "মোবাইল রিচার্জ", "টিভি / DTH", "টেলিফোন বিল", "শিক্ষা ফি",
+            "হাসপাতাল বিল", "সরকারি ফি", "bKash", "Nagad", "Rocket", "Upay",
+            "QR পে", "ব্যাংক ট্রান্সফার"
+        )
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BilPay • সকল সেবা")
+            .setItems(items) { _, which -> action(items[which]) }
+            .setNegativeButton("বন্ধ", null)
+            .show()
+    }
+
+    private fun showProfile() {
+        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val name = EditText(this).apply {
+            hint = "আপনার নাম"
+            setText(prefs.getString("profile_name", ""))
+        }
+        val phone = EditText(this).apply {
+            hint = "মোবাইল নম্বর"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+            setText(prefs.getString("profile_phone", ""))
+        }
+        form.addView(name)
+        form.addView(phone)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("ডেমো প্রোফাইল")
+            .setMessage("তথ্যগুলো শুধু এই ফোনে সংরক্ষিত হবে। এটি নিরাপদ লগইন বা KYC নয়।")
+            .setView(form)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("সংরক্ষণ") { _, _ ->
+                prefs.edit()
+                    .putString("profile_name", name.text.toString().trim())
+                    .putString("profile_phone", phone.text.toString().trim())
+                    .apply()
+                showInfo("প্রোফাইল সংরক্ষিত", "তোমার ডেমো প্রোফাইল এই ডিভাইসে সংরক্ষণ করা হয়েছে।")
+            }
+            .show()
+    }
+
+    private fun showSupport() {
+        showInfo(
+            "BilPay সাপোর্ট",
+            "ইমেইল: imran16102001bd@gmail.com\nমোবাইল: +8801977714371\n\nPIN, OTP বা পাসওয়ার্ড কাউকে জানাবেন না।"
+        )
+    }
+
     private fun showBillForm(service: String) {
         showInfo("সেবা এখনো চালু নয়", "$service-এর অনুমোদিত বিলার API ও পেমেন্ট যাচাই সংযোগ সম্পন্ন হলে এই সেবা চালু হবে। এখন কোনো বিল জমা বা টাকা কাটা হবে না।")
     }
@@ -159,8 +228,8 @@ class MainActivity : Activity() {
     private fun showHistory() {
         val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
         val entries = prefs.getString("history", "")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
-        val body = if (entries.isEmpty()) "এখনো কোনো ডেমো লেনদেন নেই।" else entries.reversed().joinToString("\\n")
-        showInfo("ডেমো লেনদেনের ইতিহাস", body + "\\n\\nএগুলো পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
+        val body = if (entries.isEmpty()) "এখনো কোনো ডেমো লেনদেন নেই।" else entries.reversed().joinToString("\n")
+        showInfo("ডেমো লেনদেনের ইতিহাস", body + "\n\nএগুলো পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
     }
 
     private fun openDemoFlow(label: String) {
@@ -175,7 +244,7 @@ class MainActivity : Activity() {
             label.contains("রিচার্জ") -> "ডেমো মোবাইল রিচার্জ"
             label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") || label.contains("ইন্টারনেট") || label.contains("বিল") -> "ডেমো বিল পেমেন্ট • $label"
             label.contains("হিসাব") || label.contains("লেনদেন") -> { showHistory(); return }
-            label.contains("প্রোফাইল") -> { showInfo("BilPay প্রোফাইল", "অ্যাকাউন্ট: ডেমো ব্যবহারকারী\\nKYC: এখনো যাচাই হয়নি\\nনিরাপত্তা: PIN/OTP মডিউল প্রস্তুতির পর্যায়ে"); return }
+            label.contains("প্রোফাইল") -> { showInfo("BilPay প্রোফাইল", "অ্যাকাউন্ট: ডেমো ব্যবহারকারী\nKYC: এখনো যাচাই হয়নি\nনিরাপত্তা: PIN/OTP মডিউল প্রস্তুতির পর্যায়ে"); return }
             label.contains("নোটিফিকেশন") -> { showInfo("নোটিফিকেশন", "নতুন কোনো নোটিফিকেশন নেই।"); return }
             else -> { showInfo(label, "এই সেবার ডেমো স্ক্রিন প্রস্তুত হচ্ছে।"); return }
         }
@@ -192,7 +261,7 @@ class MainActivity : Activity() {
         form.addView(amount)
         android.app.AlertDialog.Builder(this)
             .setTitle(title)
-            .setMessage("ডেমো ব্যালেন্স: ৳$current\\nশুধু পরীক্ষার জন্য—বাস্তব টাকা কাটবে না বা পাঠানো হবে না।")
+            .setMessage("ডেমো ব্যালেন্স: ৳$current\nশুধু পরীক্ষার জন্য—বাস্তব টাকা কাটবে না বা পাঠানো হবে না।")
             .setView(form)
             .setNegativeButton("বাতিল", null)
             .setPositiveButton("ডেমো নিশ্চিত করুন") { _, _ ->
@@ -208,8 +277,8 @@ class MainActivity : Activity() {
                         val recipient = target.text.toString().ifBlank { "ডেমো" }
                         val record = "$title • ৳$value • $recipient"
                         val old = prefs.getString("history", "") ?: ""
-                        prefs.edit().putLong("balance", updated).putString("history", (old + "\\n" + record).trim()).apply()
-                        showInfo("ডেমো সম্পন্ন", "পরীক্ষামূলক রেকর্ড সংরক্ষিত হয়েছে।\\nনতুন ডেমো ব্যালেন্স: ৳$updated\\n\\nবাস্তব লেনদেন হয়নি।")
+                        prefs.edit().putLong("balance", updated).putString("history", (old + "\n" + record).trim()).apply()
+                        showInfo("ডেমো সম্পন্ন", "পরীক্ষামূলক রেকর্ড সংরক্ষিত হয়েছে।\nনতুন ডেমো ব্যালেন্স: ৳$updated\n\nবাস্তব লেনদেন হয়নি।")
                     }
                 }
             }.show()
@@ -354,9 +423,8 @@ class MainActivity : Activity() {
         }
         safety.addView(safetyCopy)
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
-        apiStatus = text("API: সংযোগ পরীক্ষা হচ্ছে…", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
+        apiStatus = text("ডেমো মোড সক্রিয় • বাস্তব পেমেন্ট বন্ধ", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
-        checkApiConnection()
 
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
