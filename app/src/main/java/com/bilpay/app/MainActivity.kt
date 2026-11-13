@@ -304,21 +304,27 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(18), dp(20), dp(26))
         }
 
-        // Centered BilPay brand mark
+        // Compact BilPay brand header aligned to the start side
         val brand = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, dp(8))
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(2), 0, dp(2))
         }
         val mark = ImageView(this).apply {
             setImageResource(R.drawable.bilpay_gold_b_logo)
             scaleType = ImageView.ScaleType.FIT_CENTER
             contentDescription = "BilPay gold B logo"
         }
-        brand.addView(mark, LinearLayout.LayoutParams(dp(92), dp(92)).apply { gravity = Gravity.CENTER })
-        brand.addView(text("BilPay Premium", 22f, ink, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(7), 0, 0) })
-        brand.addView(text("ONE APP. ALL SERVICES.", 9f, soft, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
-        page.addView(brand, LinearLayout.LayoutParams(-1, -2))
+        brand.addView(mark, LinearLayout.LayoutParams(dp(38), dp(38)))
+        val brandText = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), 0, 0, 0)
+        }
+        brandText.addView(text("BilPay Premium", 19f, ink, true))
+        brandText.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true).apply { setPadding(0, dp(2), 0, 0) })
+        brand.addView(brandText, LinearLayout.LayoutParams(-2, -2))
+        page.addView(brand, LinearLayout.LayoutParams(-1, dp(48)))
 
         val welcome = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
