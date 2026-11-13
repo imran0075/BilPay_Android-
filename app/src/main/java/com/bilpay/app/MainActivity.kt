@@ -304,33 +304,21 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(18), dp(20), dp(26))
         }
 
-        // Brand header
-        val header = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        val mark = ImageView(this).apply {
-            setImageResource(R.drawable.ic_bilpay)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "BilPay logo"
-            elevation = dp(4).toFloat()
-        }
-        header.addView(mark, LinearLayout.LayoutParams(dp(52), dp(52)))
+        // Centered BilPay brand mark
         val brand = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), 0, 0, 0)
-        }
-        brand.addView(text("BilPay Premium", 23f, ink, true))
-        brand.addView(text("PREMIUM ONE-APP EXPERIENCE", 9f, soft, true))
-        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        val bell = TextView(this).apply {
-            text = "♧"
-            textSize = 25f
             gravity = Gravity.CENTER
-            setTextColor(ink)
-            background = shape(Color.WHITE, 16)
-            elevation = dp(2).toFloat()
-            setOnClickListener { action("নোটিফিকেশন") }
+            setPadding(0, dp(8), 0, dp(8))
         }
-        header.addView(bell, LinearLayout.LayoutParams(dp(46), dp(46)))
-        page.addView(header)
+        val mark = ImageView(this).apply {
+            setImageResource(R.drawable.bilpay_gold_b_logo)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = "BilPay gold B logo"
+        }
+        brand.addView(mark, LinearLayout.LayoutParams(dp(92), dp(92)).apply { gravity = Gravity.CENTER })
+        brand.addView(text("BilPay Premium", 22f, ink, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(7), 0, 0) })
+        brand.addView(text("ONE APP. ALL SERVICES.", 9f, soft, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(2), 0, 0) })
+        page.addView(brand, LinearLayout.LayoutParams(-1, -2))
 
         val welcome = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
