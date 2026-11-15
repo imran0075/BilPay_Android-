@@ -213,6 +213,24 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun normalizeBdPhone(raw: String): String {
+        val ascii = buildString {
+            raw.forEach { ch ->
+                when {
+                    ch in '\u09E6'..'\u09EF' -> append(('0'.code + (ch.code - '\u09E6'.code)).toChar())
+                    ch in '\u0660'..'\u0669' -> append(('0'.code + (ch.code - '\u0660'.code)).toChar())
+                    ch.isDigit() -> append(ch)
+                }
+            }
+        }
+        return when {
+            ascii.startsWith("00880") && ascii.length == 15 -> "0" + ascii.substring(5)
+            ascii.startsWith("880") && ascii.length == 13 -> "0" + ascii.substring(3)
+            ascii.length == 10 && ascii.startsWith("1") -> "0" + ascii
+            else -> ascii
+        }
+    }
+
     private fun showAuthForm(register: Boolean) {
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
         val fullName = EditText(this).apply { hint = "আপনার নাম (ঐচ্ছিক)" }
@@ -230,11 +248,18 @@ class MainActivity : Activity() {
             .setView(form)
             .setNegativeButton("বাতিল", null)
             .setPositiveButton(if (register) "অ্যাকাউন্ট তৈরি" else "লগইন") { _, _ ->
-                val mobile = phone.text.toString().trim()
+                val mobile = normalizeBdPhone(phone.text.toString())
                 val pass = password.text.toString()
                 val nameValue = fullName.text.toString().trim()
-                if (!mobile.matches(Regex("^01[3-9][0-9]{8}$")) || (register && pass.length < 10) || pass.isBlank()) {
-                    showInfo("তথ্য যাচাই করুন", "সঠিক বাংলাদেশি মোবাইল নম্বর দিন। নতুন অ্যাকাউন্টের পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।")
+                val invalidPhone = !mobile.matches(Regex("^01[3-9][0-9]{8}$"))
+                val shortRegistrationPassword = register && pass.length < 10
+                if (invalidPhone || shortRegistrationPassword || pass.isBlank()) {
+                    val validationMessage = when {
+                        invalidPhone -> "সঠিক বাংলাদেশি ১১ সংখ্যার মোবাইল নম্বর দিন। উদাহরণ: 01XXXXXXXXX অথবা +8801XXXXXXXXX"
+                        shortRegistrationPassword -> "নতুন অ্যাকাউন্টের পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।"
+                        else -> "পাসওয়ার্ড লিখুন।"
+                    }
+                    showInfo("তথ্য যাচাই করুন", validationMessage)
                 } else {
                     val progress = android.app.ProgressDialog(this).apply { setMessage("অ্যাকাউন্ট যাচাই হচ্ছে…"); setCancelable(false); show() }
                     Thread {
