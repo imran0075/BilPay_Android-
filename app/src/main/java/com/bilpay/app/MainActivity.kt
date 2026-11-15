@@ -27,6 +27,7 @@ import java.net.URL
 
 class MainActivity : Activity() {
     private lateinit var apiStatus: TextView
+    private var walletBalanceView: TextView? = null
     private val green = Color.rgb(0, 112, 78)
     private val dark = Color.rgb(20, 39, 34)
     private val muted = Color.rgb(104, 122, 115)
@@ -337,7 +338,11 @@ class MainActivity : Activity() {
                                 message = if (detail is String) detail else "অনুরোধটি সম্পন্ন হয়নি (HTTP $code)।"
                             }
                         } catch (e: Exception) { message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
-                        runOnUiThread { progress.dismiss(); showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message) }
+                        runOnUiThread {
+                            progress.dismiss()
+                            showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message)
+                            if (ok) fetchServerWallet()
+                        }
                     }.start()
                 }
             }.show()
@@ -673,12 +678,12 @@ class MainActivity : Activity() {
         balanceTop.addView(text("WALLET BALANCE", 10f, Color.rgb(207, 239, 225), true), LinearLayout.LayoutParams(0, -2, 1f))
         balanceTop.addView(text("●  DEMO WALLET", 9f, Color.rgb(219, 247, 235), true))
         balance.addView(balanceTop)
-        val demoBalance = getSharedPreferences("bilpay_demo", MODE_PRIVATE).getLong("balance", 50000L)
-        balance.addView(text("৳$demoBalance", 31f, Color.WHITE, true).apply {
+        walletBalanceView = text("লগইন করলে সার্ভার ব্যালেন্স দেখা যাবে", 18f, Color.WHITE, true).apply {
             setPadding(0, dp(10), 0, dp(3))
             typeface = Typeface.create("sans-serif", Typeface.BOLD)
-        })
-        balance.addView(text("পরীক্ষামূলক ব্যালেন্স • বাস্তব অর্থ নয়", 10f, Color.rgb(211, 240, 228)))
+        }
+        balance.addView(walletBalanceView)
+        balance.addView(text("সার্ভারে সংরক্ষিত DEMO ব্যালেন্স • বাস্তব অর্থ নয়", 10f, Color.rgb(211, 240, 228)))
         val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
         page.addView(balance, LinearLayout.LayoutParams(-1, -2))
         page.addView(quickTitle)
@@ -773,8 +778,46 @@ class MainActivity : Activity() {
         root.addView(nav)
         setContentView(root)
         checkApiConnection()
+        fetchServerWallet()
         checkForUpdate()
     }
+
+    private fun fetchServerWallet() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            walletBalanceView?.text = "লগইন করলে সার্ভার ব্যালেন্স দেখা যাবে"
+            return
+        }
+        walletBalanceView?.text = "সার্ভার ব্যালেন্স লোড হচ্ছে…"
+        Thread {
+            var display = "ব্যালেন্স পাওয়া যায়নি"
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/wallet").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code in 200..299) {
+                    val json = JSONObject(body)
+                    val amount = json.optString("balance", "0.00").toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+                    display = "৳" + String.format(java.util.Locale.US, "%,.2f", amount)
+                } else if (code == 401) {
+                    display = "আবার লগইন করুন"
+                    securePrefs().edit().clear().apply()
+                }
+            } catch (_: Exception) {
+                display = "সার্ভার ব্যালেন্স পাওয়া যায়নি"
+            }
+            runOnUiThread { walletBalanceView?.text = display }
+        }.start()
+    }
+
     private fun checkApiConnection() {
         val baseUrl = BuildConfig.API_BASE_URL.trim().trimEnd('/')
         if (baseUrl.isBlank()) {
