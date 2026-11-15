@@ -33,3 +33,10 @@ GitHub repo `imran0075/BilPay_Android-` থেকে নতুন Web Service �
 এই সংস্করণ কোনো টাকা নেয় না, ব্যালেন্স রাখে না, এবং কোনো লেনদেন সম্পন্ন হয়েছে বলে দাবি করে না। পেমেন্ট endpoint প্রোভাইডার API অনুপস্থিত থাকলে fail-closed ভাবে 503 দেয়। বাস্তব সংযোগের আগে সংশ্লিষ্ট প্রতিষ্ঠানের লিখিত অনুমোদন, merchant account, official API documentation, server-side secret storage, webhook signature verification, idempotency, database ledger, reconciliation, KYC/AML ও প্রয়োজনীয় নিয়ন্ত্রক অনুমোদন লাগবে।
 
 কোনো API secret, password, OTP বা private key GitHub-এ commit করবেন না। এগুলো কেবল server-এর protected environment/secrets-এ রাখতে হবে।
+
+
+## নিরাপদ Test Payment Mode
+- Render-এর backend service-এ `BILPAY_TEST_MODE=true` environment variable দিলে `POST /api/v1/test-payments/simulate` চালু হবে।
+- Request body-তে `service_id`, `provider_id`, `amount` এবং `outcome` (`success` অথবা `failed`) পাঠিয়ে UI ও response flow পরীক্ষা করা যাবে।
+- এটি কেবল কাল্পনিক TEST_ONLY ফলাফল দেয়। কোনো টাকা নেয়/পাঠায় না, wallet balance বদলায় না এবং transaction database-এ সংরক্ষণ করে না।
+- Test mode বন্ধ রাখতে Render-এ `BILPAY_TEST_MODE=false` দিন বা variable-টি সরিয়ে দিন। Live payment endpoint আগের মতোই অনুমোদিত provider integration ছাড়া বন্ধ থাকবে।
