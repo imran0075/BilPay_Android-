@@ -225,11 +225,42 @@ class MainActivity : Activity() {
         showInfo("সেবা এখনো চালু নয়", "$service-এর অনুমোদিত বিলার API ও পেমেন্ট যাচাই সংযোগ সম্পন্ন হলে এই সেবা চালু হবে। এখন কোনো বিল জমা বা টাকা কাটা হবে না।")
     }
 
+    private fun saveApiTestHistory(serviceLabel: String, providerId: String, amount: String, status: String, transactionId: String) {
+        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
+        val old = try { org.json.JSONArray(prefs.getString("api_test_history", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
+        val record = JSONObject().apply {
+            put("service", serviceLabel)
+            put("provider", providerId)
+            put("amount", amount)
+            put("status", status)
+            put("transaction_id", transactionId)
+            put("created_at", java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.ENGLISH).format(java.util.Date()))
+        }
+        old.put(record)
+        val trimmed = org.json.JSONArray()
+        for (i in maxOf(0, old.length() - 100) until old.length()) trimmed.put(old.getJSONObject(i))
+        prefs.edit().putString("api_test_history", trimmed.toString()).apply()
+    }
+
     private fun showHistory() {
         val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
-        val entries = prefs.getString("history", "")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
-        val body = if (entries.isEmpty()) "এখনো কোনো ডেমো লেনদেন নেই।" else entries.reversed().joinToString("\n")
-        showInfo("ডেমো লেনদেনের ইতিহাস", body + "\n\nএগুলো পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
+        val apiEntries = try { org.json.JSONArray(prefs.getString("api_test_history", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
+        val oldEntries = prefs.getString("history", "")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
+        val lines = mutableListOf<String>()
+        for (i in apiEntries.length() - 1 downTo maxOf(0, apiEntries.length() - 20)) {
+            val item = apiEntries.optJSONObject(i) ?: continue
+            val status = item.optString("status")
+            val statusLabel = if (status == "success") "সফল" else "ব্যর্থ"
+            lines.add(
+                "$statusLabel • ${item.optString("service")}\n" +
+                "৳${item.optString("amount")} • ${item.optString("provider").uppercase()}\n" +
+                "ID: ${item.optString("transaction_id")}\n" +
+                "${item.optString("created_at")}"
+            )
+        }
+        if (oldEntries.isNotEmpty()) lines.addAll(oldEntries.reversed().take(10))
+        val body = if (lines.isEmpty()) "এখনো কোনো লেনদেনের রেকর্ড নেই।" else lines.joinToString("\n\n")
+        showInfo("লেনদেনের ইতিহাস", body + "\n\nএগুলো ডিভাইসে সংরক্ষিত পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
     }
 
     private fun showApiTestForm(serviceLabel: String, serviceId: String) {
@@ -305,11 +336,19 @@ class MainActivity : Activity() {
                 val json = JSONObject(body)
                 if (code in 200..299 && json.optString("mode") == "TEST_ONLY") {
                     val status = json.optString("status", "unknown")
+                    val transactionId = json.optString("transaction_id", "N/A")
+                    saveApiTestHistory(
+                        serviceLabel,
+                        json.optString("provider_id", providerId),
+                        json.optString("amount", amount),
+                        status,
+                        transactionId
+                    )
                     resultTitle = if (status == "success") "টেস্ট পেমেন্ট সফল" else "টেস্ট পেমেন্ট ব্যর্থ"
                     resultMessage = "সেবা: " + serviceLabel +
                         "\nমাধ্যম: " + json.optString("provider_id", providerId) +
                         "\nপরিমাণ: ৳" + json.optString("amount", amount) +
-                        "\nTransaction ID: " + json.optString("transaction_id", "N/A") +
+                        "\nTransaction ID: " + transactionId +
                         "\nফলাফল: " + status +
                         "\n\nবাস্তব টাকা লেনদেন হয়নি। ওয়ালেট ব্যালেন্স পরিবর্তন হয়নি।"
                 } else {
