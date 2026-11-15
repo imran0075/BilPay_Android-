@@ -321,7 +321,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), 0, 0, 0)
         }
-        brandText.addView(text("BilPay Premium", 19f, ink, true))
+        brandText.addView(text("BilPay", 19f, ink, true))
         brandText.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true).apply { setPadding(0, dp(2), 0, 0) })
         brand.addView(brandText, LinearLayout.LayoutParams(-2, -2))
         page.addView(brand, LinearLayout.LayoutParams(-1, dp(48)))
