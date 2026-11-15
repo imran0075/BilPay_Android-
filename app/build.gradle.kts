@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-dependencies { implementation("androidx.core:core-ktx:1.13.1") }
+dependencies {\n    implementation("androidx.core:core-ktx:1.13.1")\n    implementation("androidx.security:security-crypto:1.1.0-alpha06")\n}
 
 android {
     namespace = "com.bilpay.app"
@@ -28,8 +28,8 @@ android {
         applicationId = "com.bilpay.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.1.5"
+        versionCode = 8
+        versionName = "1.1.6"
         val configuredApiUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?)?.trim()
         val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-api-5b57.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
