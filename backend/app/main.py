@@ -35,6 +35,16 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
+class Wallet(Base):
+    __tablename__ = "wallets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("50000.00"))
+    currency: Mapped[str] = mapped_column(String(3), default="BDT")
+    mode: Mapped[str] = mapped_column(String(20), default="DEMO_ONLY")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
 class Transaction(Base):
     __tablename__ = "transactions"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -164,6 +174,22 @@ def login(payload:LoginRequest, db:Session=Depends(get_db)):
 @app.get("/api/v1/auth/me",response_model=UserOut)
 def me(user:User=Depends(current_user)):
     return user
+
+@app.get("/api/v1/wallet")
+def get_wallet(user:User=Depends(current_user),db:Session=Depends(get_db)):
+    wallet=db.scalar(select(Wallet).where(Wallet.user_id==user.id))
+    if wallet is None:
+        wallet=Wallet(user_id=user.id,balance=Decimal("50000.00"),currency="BDT",mode="DEMO_ONLY")
+        db.add(wallet)
+        try:
+            db.commit()
+            db.refresh(wallet)
+        except Exception:
+            db.rollback()
+            wallet=db.scalar(select(Wallet).where(Wallet.user_id==user.id))
+            if wallet is None:
+                raise HTTPException(status_code=503,detail="ডেমো ওয়ালেট তৈরি করা যায়নি।")
+    return {"wallet_id":wallet.id,"balance":str(wallet.balance),"currency":wallet.currency,"mode":wallet.mode,"real_money":False,"message":"এটি সার্ভারে সংরক্ষিত পরীক্ষামূলক ব্যালেন্স; বাস্তব অর্থ নয়।"}
 
 @app.get("/api/v1/transactions")
 def history(user:User=Depends(current_user),db:Session=Depends(get_db),limit:int=20):
