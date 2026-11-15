@@ -1,6 +1,7 @@
 import os
 from decimal import Decimal
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,7 +10,7 @@ from pydantic import BaseModel, Field
 app = FastAPI(
     title="BilPay API",
     description="Shared API foundation for BilPay Android, web and admin clients.",
-    version="0.1.0",
+    version="0.2.0",
 )
 
 default_origins = (
@@ -31,6 +32,10 @@ if allowed_origins:
         allow_methods=["GET", "POST"],
         allow_headers=["Content-Type", "Authorization"],
     )
+
+TEST_MODE_ENABLED = os.getenv("BILPAY_TEST_MODE", "false").strip().lower() in {
+    "1", "true", "yes", "on"
+}
 
 SERVICES = [
     {"id": "electricity", "name": "বিদ্যুৎ বিল", "category": "bill", "enabled": False},
@@ -59,9 +64,17 @@ class PaymentIntentRequest(BaseModel):
     currency: Literal["BDT"] = "BDT"
 
 
+class TestPaymentRequest(BaseModel):
+    service_id: str = Field(min_length=2, max_length=40)
+    provider_id: str = Field(min_length=2, max_length=30)
+    amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
+    outcome: Literal["success", "failed"] = "success"
+    currency: Literal["BDT"] = "BDT"
+
+
 @app.get("/")
 def root():
-    return {"name": "BilPay API", "version": "0.1.0", "status": "ready"}
+    return {"name": "BilPay API", "version": app.version, "status": "ready"}
 
 
 @app.get("/health")
@@ -75,6 +88,7 @@ def api_status():
         "name": "BilPay",
         "api_version": app.version,
         "status": "operational",
+        "test_mode_enabled": TEST_MODE_ENABLED,
         "live_transactions_enabled": False,
         "provider_integrations": {
             provider["id"]: provider["status"] for provider in PROVIDERS
@@ -105,8 +119,7 @@ def initiate_payment(payload: PaymentIntentRequest):
         raise HTTPException(status_code=404, detail="অজানা সেবা")
     if provider is None:
         raise HTTPException(status_code=404, detail="অজানা পেমেন্ট প্রোভাইডার")
-    # Intentionally fail closed: no payment is accepted or simulated until
-    # the selected provider's official merchant API contract is configured.
+    # Live payments remain disabled until an approved provider integration exists.
     raise HTTPException(
         status_code=503,
         detail={
@@ -115,3 +128,36 @@ def initiate_payment(payload: PaymentIntentRequest):
             "provider": provider["id"],
         },
     )
+
+
+@app.post("/api/v1/test-payments/simulate")
+def simulate_test_payment(payload: TestPaymentRequest):
+    if not TEST_MODE_ENABLED:
+        raise HTTPException(
+            status_code=404,
+            detail="টেস্ট পেমেন্ট মোড বর্তমানে বন্ধ আছে।",
+        )
+
+    service = next((x for x in SERVICES if x["id"] == payload.service_id), None)
+    provider = next((x for x in PROVIDERS if x["id"] == payload.provider_id), None)
+    if service is None:
+        raise HTTPException(status_code=404, detail="অজানা সেবা")
+    if provider is None:
+        raise HTTPException(status_code=404, detail="অজানা পেমেন্ট প্রোভাইডার")
+
+    return {
+        "mode": "TEST_ONLY",
+        "transaction_id": f"BILPAY-TEST-{uuid4().hex[:12].upper()}",
+        "status": "success" if payload.outcome == "success" else "failed",
+        "service_id": service["id"],
+        "provider_id": provider["id"],
+        "amount": str(payload.amount),
+        "currency": payload.currency,
+        "real_money_used": False,
+        "wallet_balance_changed": False,
+        "message": (
+            "এটি শুধুমাত্র পরীক্ষামূলক সফল ফলাফল; কোনো টাকা লেনদেন হয়নি।"
+            if payload.outcome == "success"
+            else "এটি শুধুমাত্র পরীক্ষামূলক ব্যর্থ ফলাফল; কোনো টাকা লেনদেন হয়নি।"
+        ),
+    }
