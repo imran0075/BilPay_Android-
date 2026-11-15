@@ -324,6 +324,32 @@ class MainActivity : Activity() {
         brandText.addView(text("BilPay", 19f, ink, true))
         brandText.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true).apply { setPadding(0, dp(2), 0, 0) })
         brand.addView(brandText, LinearLayout.LayoutParams(-2, -2))
+        // Keep the BilPay brand on the left and the overflow/settings menu on the right.
+        brand.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        val moreButton = TextView(this).apply {
+            text = "⋮"
+            textSize = 29f
+            gravity = Gravity.CENTER
+            setTextColor(ink)
+            contentDescription = "সেটিংস ও আরও অপশন"
+            setPadding(dp(12), 0, dp(4), 0)
+            setOnClickListener { anchor ->
+                val popup = android.widget.PopupMenu(this@MainActivity, anchor)
+                popup.menu.add("সেটিংস")
+                popup.menu.add("প্রোফাইল")
+                popup.menu.add("সাপোর্ট")
+                popup.setOnMenuItemClickListener { item ->
+                    when (item.title.toString()) {
+                        "সেটিংস" -> showInfo("সেটিংস", "BilPay বর্তমানে ডেমো মোডে চলছে। বাস্তব লেনদেন চালুর আগে অনুমোদিত API, নিরাপদ লগইন ও প্রয়োজনীয় অনুমোদন যুক্ত করতে হবে।")
+                        "প্রোফাইল" -> showProfile()
+                        "সাপোর্ট" -> showSupport()
+                    }
+                    true
+                }
+                popup.show()
+            }
+        }
+        brand.addView(moreButton, LinearLayout.LayoutParams(dp(44), dp(44)))
         page.addView(brand, LinearLayout.LayoutParams(-1, dp(48)))
 
         val welcome = LinearLayout(this).apply {
