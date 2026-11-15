@@ -232,7 +232,119 @@ class MainActivity : Activity() {
         showInfo("ডেমো লেনদেনের ইতিহাস", body + "\n\nএগুলো পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
     }
 
+    private fun showApiTestForm(serviceLabel: String, serviceId: String) {
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val amount = EditText(this).apply {
+            hint = "টাকার পরিমাণ (যেমন 100.00)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val provider = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("bKash", "Nagad", "Rocket", "Upay"))
+        }
+        val outcome = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("সফল (Success)", "ব্যর্থ (Failed)"))
+        }
+        form.addView(amount)
+        form.addView(text("টেস্ট পেমেন্ট মাধ্যম", 12f, dark, true))
+        form.addView(provider)
+        form.addView(text("পরীক্ষার ফলাফল", 12f, dark, true).apply { setPadding(0, dp(12), 0, 0) })
+        form.addView(outcome)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BilPay API • " + serviceLabel)
+            .setMessage("এটি API-তে পাঠানো পরীক্ষামূলক অনুরোধ। বাস্তব টাকা কাটা বা ওয়ালেট ব্যালেন্স পরিবর্তন হবে না।")
+            .setView(form)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("API দিয়ে পরীক্ষা করুন") { _, _ ->
+                val value = amount.text.toString().trim()
+                val numeric = value.toBigDecimalOrNull()
+                if (numeric == null || numeric <= java.math.BigDecimal.ZERO) {
+                    showInfo("সঠিক পরিমাণ দিন", "১.০০ বা তার বেশি টাকার পরিমাণ লিখুন।")
+                } else {
+                    val providerId = listOf("bkash", "nagad", "rocket", "upay")[provider.selectedItemPosition]
+                    val outcomeId = if (outcome.selectedItemPosition == 0) "success" else "failed"
+                    simulateApiPayment(serviceLabel, serviceId, providerId, value, outcomeId)
+                }
+            }
+            .show()
+    }
+
+    private fun simulateApiPayment(serviceLabel: String, serviceId: String, providerId: String, amount: String, outcome: String) {
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("BilPay API-তে সংযোগ করা হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            var resultTitle = "API অনুরোধ সম্পন্ন হয়নি"
+            var resultMessage = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"
+            try {
+                val url = URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/test-payments/simulate")
+                val connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val payload = JSONObject().apply {
+                    put("service_id", serviceId)
+                    put("provider_id", providerId)
+                    put("amount", amount)
+                    put("outcome", outcome)
+                    put("currency", "BDT")
+                }.toString()
+                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                val json = JSONObject(body)
+                if (code in 200..299 && json.optString("mode") == "TEST_ONLY") {
+                    val status = json.optString("status", "unknown")
+                    resultTitle = if (status == "success") "টেস্ট পেমেন্ট সফল" else "টেস্ট পেমেন্ট ব্যর্থ"
+                    resultMessage = "সেবা: " + serviceLabel +
+                        "\nমাধ্যম: " + json.optString("provider_id", providerId) +
+                        "\nপরিমাণ: ৳" + json.optString("amount", amount) +
+                        "\nTransaction ID: " + json.optString("transaction_id", "N/A") +
+                        "\nফলাফল: " + status +
+                        "\n\nবাস্তব টাকা লেনদেন হয়নি। ওয়ালেট ব্যালেন্স পরিবর্তন হয়নি।"
+                } else {
+                    resultTitle = "API অনুরোধ গ্রহণ হয়নি (HTTP " + code + ")"
+                    resultMessage = json.optString("detail", json.optString("message", "অনুগ্রহ করে পরে আবার চেষ্টা করুন।"))
+                }
+            } catch (e: Exception) {
+                resultMessage = "API-তে যোগাযোগের সময় সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা সমস্যা")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                showInfo(resultTitle, resultMessage)
+            }
+        }.start()
+    }
+
     private fun openDemoFlow(label: String) {
+        val serviceId = when {
+            label.contains("বিদ্যুৎ") -> "electricity"
+            label.contains("পানি") -> "water"
+            label.contains("গ্যাস") -> "gas"
+            label.contains("ইন্টারনেট") -> "internet"
+            label.contains("রিচার্জ") -> "mobile_recharge"
+            label.contains("শিক্ষা") -> "education"
+            label.contains("সরকারি") -> "government"
+            else -> null
+        }
+        if (serviceId != null) {
+            showApiTestForm(label, serviceId)
+            return
+        }
+        if (label.contains("টিভি") || label.contains("টেলিফোন") || label.contains("হাসপাতাল") || label.contains("অন্যান্য বিল")) {
+            showInfo("সেবা প্রস্তুত হচ্ছে", "এই সেবার API এখনো BilPay সার্ভারে যুক্ত হয়নি। বর্তমানে বিদ্যুৎ, পানি, গ্যাস, ইন্টারনেট, মোবাইল রিচার্জ, শিক্ষা ও সরকারি ফি-এর পরীক্ষামূলক API অনুরোধ করা যাবে।")
+            return
+        }
         val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
         val current = prefs.getLong("balance", 50000L)
         val title = when {
@@ -471,6 +583,7 @@ class MainActivity : Activity() {
         }
         root.addView(nav)
         setContentView(root)
+        checkApiConnection()
         checkForUpdate()
     }
     private fun checkApiConnection() {
