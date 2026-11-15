@@ -3,7 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-dependencies {\n    implementation("androidx.core:core-ktx:1.13.1")\n    implementation("androidx.security:security-crypto:1.1.0-alpha06")\n}
+dependencies {
+    implementation("androidx.core:core-ktx:1.13.1")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+}
 
 android {
     namespace = "com.bilpay.app"
