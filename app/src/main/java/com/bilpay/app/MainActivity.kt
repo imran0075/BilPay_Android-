@@ -311,9 +311,9 @@ class MainActivity : Activity() {
             setPadding(0, dp(2), 0, dp(2))
         }
         val mark = ImageView(this).apply {
-            setImageResource(R.drawable.bilpay_gold_b_logo)
+            setImageResource(R.drawable.bilpay_home_logo)
             scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "BilPay gold B logo"
+            contentDescription = "BilPay home logo"
         }
         brand.addView(mark, LinearLayout.LayoutParams(dp(38), dp(38)))
         val brandText = LinearLayout(this).apply {
