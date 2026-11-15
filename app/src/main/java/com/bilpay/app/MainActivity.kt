@@ -196,21 +196,67 @@ class MainActivity : Activity() {
     private fun showProfile() {
         val prefs = securePrefs()
         val token = prefs.getString("access_token", null)
-        if (!token.isNullOrBlank()) {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("BilPay অ্যাকাউন্ট")
-                .setMessage("মোবাইল: " + (prefs.getString("account_phone", "") ?: "") + "\n\nআপনার অ্যাকাউন্ট সার্ভারের সঙ্গে সংযুক্ত।")
-                .setNegativeButton("বন্ধ", null)
-                .setPositiveButton("লগআউট") { _, _ ->
-                    prefs.edit().clear().apply()
-                    showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BilPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
-                }.show()
-        } else {
+        if (token.isNullOrBlank()) {
             android.app.AlertDialog.Builder(this)
                 .setTitle("BilPay অ্যাকাউন্ট")
                 .setItems(arrayOf("লগইন", "নতুন অ্যাকাউন্ট তৈরি")) { _, which -> showAuthForm(which == 1) }
                 .setNegativeButton("বন্ধ", null).show()
+            return
         }
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("সার্ভার থেকে প্রোফাইল আনা হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            var title = "BilPay অ্যাকাউন্ট"
+            var message = "প্রোফাইল তথ্য পাওয়া যায়নি।"
+            var sessionExpired = false
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/auth/me").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code in 200..299) {
+                    val user = JSONObject(body)
+                    val name = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
+                    val phone = user.optString("phone")
+                    message = "নাম: $name\nমোবাইল: $phone\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\n\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\n\nওয়ালেট ব্যালেন্স: এখনো চালু হয়নি। কোনো বাস্তব টাকা সংরক্ষিত নেই।"
+                } else if (code == 401) {
+                    sessionExpired = true
+                    title = "আবার লগইন করুন"
+                    message = "আপনার লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
+                    prefs.edit().clear().apply()
+                } else {
+                    message = "সার্ভার উত্তর দিয়েছে (HTTP $code)। কিছুক্ষণ পর আবার চেষ্টা করুন।"
+                }
+            } catch (e: Exception) {
+                message = "সার্ভারের সঙ্গে যোগাযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                if (sessionExpired) {
+                    showInfo(title, message)
+                    showAuthForm(false)
+                } else {
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle(title)
+                        .setMessage(message)
+                        .setNegativeButton("বন্ধ", null)
+                        .setPositiveButton("লগআউট") { _, _ ->
+                            prefs.edit().clear().apply()
+                            showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BilPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
+                        }.show()
+                }
+            }
+        }.start()
     }
 
     private fun normalizeBdPhone(raw: String): String {
