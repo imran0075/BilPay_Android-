@@ -232,6 +232,7 @@ class MainActivity : Activity() {
             .setPositiveButton(if (register) "অ্যাকাউন্ট তৈরি" else "লগইন") { _, _ ->
                 val mobile = phone.text.toString().trim()
                 val pass = password.text.toString()
+                val nameValue = fullName.text.toString().trim()
                 if (!mobile.matches(Regex("^01[3-9][0-9]{8}$")) || (register && pass.length < 10) || pass.isBlank()) {
                     showInfo("তথ্য যাচাই করুন", "সঠিক বাংলাদেশি মোবাইল নম্বর দিন। নতুন অ্যাকাউন্টের পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।")
                 } else {
@@ -247,7 +248,7 @@ class MainActivity : Activity() {
                             }
                             val body = JSONObject().apply {
                                 put("phone", mobile); put("password", pass)
-                                if (register) put("full_name", fullName.text.toString().trim())
+                                if (register) put("full_name", nameValue)
                             }.toString()
                             connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
                             val code = connection.responseCode
