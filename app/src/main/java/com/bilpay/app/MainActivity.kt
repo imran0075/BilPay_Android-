@@ -10,6 +10,9 @@ import android.net.Uri
 import android.os.Environment
 import android.os.Build
 import androidx.core.content.FileProvider
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import android.text.method.PasswordTransformationMethod
 import org.json.JSONObject
 import java.io.File
 import android.os.Bundle
@@ -182,36 +185,90 @@ class MainActivity : Activity() {
             .show()
     }
 
+    private fun securePrefs() = EncryptedSharedPreferences.create(
+        this,
+        "bilpay_secure",
+        MasterKey.Builder(this).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+
     private fun showProfile() {
-        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), 0)
+        val prefs = securePrefs()
+        val token = prefs.getString("access_token", null)
+        if (!token.isNullOrBlank()) {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("BilPay অ্যাকাউন্ট")
+                .setMessage("মোবাইল: " + (prefs.getString("account_phone", "") ?: "") + "\n\nআপনার অ্যাকাউন্ট সার্ভারের সঙ্গে সংযুক্ত।")
+                .setNegativeButton("বন্ধ", null)
+                .setPositiveButton("লগআউট") { _, _ ->
+                    prefs.edit().clear().apply()
+                    showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BilPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
+                }.show()
+        } else {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("BilPay অ্যাকাউন্ট")
+                .setItems(arrayOf("লগইন", "নতুন অ্যাকাউন্ট তৈরি")) { _, which -> showAuthForm(which == 1) }
+                .setNegativeButton("বন্ধ", null).show()
         }
-        val name = EditText(this).apply {
-            hint = "আপনার নাম"
-            setText(prefs.getString("profile_name", ""))
+    }
+
+    private fun showAuthForm(register: Boolean) {
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
+        val fullName = EditText(this).apply { hint = "আপনার নাম (ঐচ্ছিক)" }
+        val phone = EditText(this).apply { hint = "মোবাইল নম্বর (01XXXXXXXXX)"; inputType = android.text.InputType.TYPE_CLASS_PHONE }
+        val password = EditText(this).apply {
+            hint = if (register) "পাসওয়ার্ড (কমপক্ষে ১০ অক্ষর)" else "পাসওয়ার্ড"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            transformationMethod = PasswordTransformationMethod.getInstance()
         }
-        val phone = EditText(this).apply {
-            hint = "মোবাইল নম্বর"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
-            setText(prefs.getString("profile_phone", ""))
-        }
-        form.addView(name)
-        form.addView(phone)
+        if (register) form.addView(fullName)
+        form.addView(phone); form.addView(password)
         android.app.AlertDialog.Builder(this)
-            .setTitle("ডেমো প্রোফাইল")
-            .setMessage("তথ্যগুলো শুধু এই ফোনে সংরক্ষিত হবে। এটি নিরাপদ লগইন বা KYC নয়।")
+            .setTitle(if (register) "নতুন BilPay অ্যাকাউন্ট" else "BilPay লগইন")
+            .setMessage("নিজের মোবাইল নম্বর ব্যবহার করুন। পাসওয়ার্ড কাউকে দেবেন না।")
             .setView(form)
             .setNegativeButton("বাতিল", null)
-            .setPositiveButton("সংরক্ষণ") { _, _ ->
-                prefs.edit()
-                    .putString("profile_name", name.text.toString().trim())
-                    .putString("profile_phone", phone.text.toString().trim())
-                    .apply()
-                showInfo("প্রোফাইল সংরক্ষিত", "তোমার ডেমো প্রোফাইল এই ডিভাইসে সংরক্ষণ করা হয়েছে।")
-            }
-            .show()
+            .setPositiveButton(if (register) "অ্যাকাউন্ট তৈরি" else "লগইন") { _, _ ->
+                val mobile = phone.text.toString().trim()
+                val pass = password.text.toString()
+                if (!mobile.matches(Regex("^01[3-9][0-9]{8}$")) || (register && pass.length < 10) || pass.isBlank()) {
+                    showInfo("তথ্য যাচাই করুন", "সঠিক বাংলাদেশি মোবাইল নম্বর দিন। নতুন অ্যাকাউন্টের পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।")
+                } else {
+                    val progress = android.app.ProgressDialog(this).apply { setMessage("অ্যাকাউন্ট যাচাই হচ্ছে…"); setCancelable(false); show() }
+                    Thread {
+                        var message = "সার্ভারে সংযোগ করা যায়নি।"
+                        var ok = false
+                        try {
+                            val endpoint = if (register) "/api/v1/auth/register" else "/api/v1/auth/login"
+                            val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + endpoint).openConnection() as HttpURLConnection).apply {
+                                requestMethod = "POST"; connectTimeout = 15000; readTimeout = 15000
+                                doOutput = true; setRequestProperty("Content-Type", "application/json")
+                            }
+                            val body = JSONObject().apply {
+                                put("phone", mobile); put("password", pass)
+                                if (register) put("full_name", fullName.text.toString().trim())
+                            }.toString()
+                            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
+                            val code = connection.responseCode
+                            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                            val response = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                            connection.disconnect()
+                            val json = JSONObject(response)
+                            if (code in 200..299 && json.has("access_token")) {
+                                securePrefs().edit().putString("access_token", json.getString("access_token"))
+                                    .putString("account_phone", mobile).apply()
+                                ok = true
+                                message = "আপনার অ্যাকাউন্ট সফলভাবে " + if (register) "তৈরি হয়েছে।" else "লগইন হয়েছে।"
+                            } else {
+                                val detail = json.opt("detail")
+                                message = if (detail is String) detail else "অনুরোধটি সম্পন্ন হয়নি (HTTP $code)।"
+                            }
+                        } catch (e: Exception) { message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
+                        runOnUiThread { progress.dismiss(); showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message) }
+                    }.start()
+                }
+            }.show()
     }
 
     private fun showSupport() {
@@ -243,24 +300,44 @@ class MainActivity : Activity() {
     }
 
     private fun showHistory() {
-        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
-        val apiEntries = try { org.json.JSONArray(prefs.getString("api_test_history", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
-        val oldEntries = prefs.getString("history", "")?.lines()?.filter { it.isNotBlank() } ?: emptyList()
-        val lines = mutableListOf<String>()
-        for (i in apiEntries.length() - 1 downTo maxOf(0, apiEntries.length() - 20)) {
-            val item = apiEntries.optJSONObject(i) ?: continue
-            val status = item.optString("status")
-            val statusLabel = if (status == "success") "সফল" else "ব্যর্থ"
-            lines.add(
-                "$statusLabel • ${item.optString("service")}\n" +
-                "৳${item.optString("amount")} • ${item.optString("provider").uppercase()}\n" +
-                "ID: ${item.optString("transaction_id")}\n" +
-                "${item.optString("created_at")}"
-            )
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "সার্ভারে সংরক্ষিত লেনদেন দেখতে আগে আপনার BilPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
         }
-        if (oldEntries.isNotEmpty()) lines.addAll(oldEntries.reversed().take(10))
-        val body = if (lines.isEmpty()) "এখনো কোনো লেনদেনের রেকর্ড নেই।" else lines.joinToString("\n\n")
-        showInfo("লেনদেনের ইতিহাস", body + "\n\nএগুলো ডিভাইসে সংরক্ষিত পরীক্ষামূলক রেকর্ড—বাস্তব টাকা লেনদেন নয়।")
+        val progress = android.app.ProgressDialog(this).apply { setMessage("লেনদেনের ইতিহাস আনা হচ্ছে…"); setCancelable(false); show() }
+        Thread {
+            var message = "লেনদেনের ইতিহাস পাওয়া যায়নি।"
+            var title = "লেনদেনের ইতিহাস"
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/transactions?limit=50").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"; connectTimeout = 15000; readTimeout = 15000
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code in 200..299) {
+                    val items = JSONObject(body).optJSONArray("items") ?: org.json.JSONArray()
+                    val lines = mutableListOf<String>()
+                    for (i in 0 until items.length()) {
+                        val item = items.optJSONObject(i) ?: continue
+                        val status = if (item.optString("status") == "success") "সফল" else "ব্যর্থ"
+                        lines.add("$status • ${item.optString("service_id")}\n৳${item.optString("amount")} • ${item.optString("provider_id").uppercase()}\nID: ${item.optString("transaction_id")}\n${item.optString("created_at")}")
+                    }
+                    message = if (lines.isEmpty()) "এখনো কোনো সার্ভার-সংরক্ষিত লেনদেন নেই।" else lines.joinToString("\n\n")
+                    message += "\n\nএগুলো আপনার অ্যাকাউন্টের সার্ভার-সংরক্ষিত পরীক্ষামূলক রেকর্ড। বাস্তব টাকা লেনদেন হয়নি।"
+                } else {
+                    title = "আবার লগইন করুন"
+                    message = "আপনার লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
+                    securePrefs().edit().clear().apply()
+                }
+            } catch (e: Exception) { message = "সার্ভারের সঙ্গে যোগাযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
+            runOnUiThread { progress.dismiss(); showInfo(title, message) }
+        }.start()
     }
 
     private fun showApiTestForm(serviceLabel: String, serviceId: String) {
@@ -320,6 +397,7 @@ class MainActivity : Activity() {
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json")
                     setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Authorization", "Bearer " + (securePrefs().getString("access_token", "") ?: ""))
                 }
                 val payload = JSONObject().apply {
                     put("service_id", serviceId)
