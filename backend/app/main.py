@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 from pwdlib import PasswordHash
-from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey
+from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
 
 db_url = os.getenv("DATABASE_URL", "").strip()
@@ -59,6 +59,15 @@ class Transaction(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     user: Mapped[User] = relationship(back_populates="transactions")
 
+class AdminAuditLog(Base):
+    __tablename__ = "admin_audit_logs"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    admin_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    action: Mapped[str] = mapped_column(String(60))
+    target: Mapped[str] = mapped_column(String(100), default="")
+    details: Mapped[str] = mapped_column(String(500), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
 def get_db():
     db = SessionLocal()
     try:
@@ -87,6 +96,14 @@ def current_user(authorization: Optional[str] = Header(default=None), db: Sessio
         raise HTTPException(status_code=401, detail="লগইন সেশন সঠিক নয় বা মেয়াদ শেষ হয়েছে।")
     if user is None:
         raise HTTPException(status_code=401, detail="অ্যাকাউন্ট পাওয়া যায়নি।")
+    return user
+
+def admin_user(user: User = Depends(current_user)):
+    allowed = {x.strip() for x in os.getenv("BILPAY_ADMIN_PHONES", "").split(",") if x.strip()}
+    if not allowed:
+        raise HTTPException(status_code=503, detail="অ্যাডমিন অ্যাক্সেস এখনো নিরাপদভাবে কনফিগার করা হয়নি।")
+    if user.phone not in allowed:
+        raise HTTPException(status_code=403, detail="এই অংশ ব্যবহারের অনুমতি নেই।")
     return user
 
 @asynccontextmanager
@@ -196,6 +213,40 @@ def history(user:User=Depends(current_user),db:Session=Depends(get_db),limit:int
     limit=max(1,min(limit,100))
     rows=db.scalars(select(Transaction).where(Transaction.user_id==user.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
     return {"items":[{"transaction_id":r.transaction_id,"service_id":r.service_id,"provider_id":r.provider_id,"amount":str(r.amount),"currency":r.currency,"status":r.status,"mode":r.mode,"created_at":r.created_at.isoformat()} for r in rows]}
+
+@app.get("/api/v1/admin/overview")
+def admin_overview(admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    total_users = db.scalar(select(func.count()).select_from(User)) or 0
+    total_transactions = db.scalar(select(func.count()).select_from(Transaction)) or 0
+    successful_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "success")) or 0
+    failed_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "failed")) or 0
+    return {
+        "mode": "ADMIN_READ_ONLY",
+        "total_users": total_users,
+        "total_transactions": total_transactions,
+        "successful_test_records": successful_tests,
+        "failed_test_records": failed_tests,
+        "live_transactions_enabled": False,
+        "message": "এটি প্রশাসনিক পর্যবেক্ষণ; এখান থেকে বাস্তব অর্থ লেনদেন করা যায় না।"
+    }
+
+@app.get("/api/v1/admin/users")
+def admin_users(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.scalars(select(User).order_by(User.created_at.desc()).limit(limit)).all()
+    return {"items": [{"id": u.id, "phone": u.phone, "full_name": u.full_name, "created_at": u.created_at.isoformat()} for u in rows]}
+
+@app.get("/api/v1/admin/transactions")
+def admin_transactions(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.execute(select(Transaction, User.phone).join(User, Transaction.user_id == User.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
+    return {"items": [{"transaction_id": t.transaction_id, "user_phone": phone, "service_id": t.service_id, "provider_id": t.provider_id, "amount": str(t.amount), "currency": t.currency, "status": t.status, "mode": t.mode, "created_at": t.created_at.isoformat()} for t, phone in rows]}
+
+@app.get("/api/v1/admin/audit")
+def admin_audit(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.scalars(select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(limit)).all()
+    return {"items": [{"id": x.id, "admin_user_id": x.admin_user_id, "action": x.action, "target": x.target, "details": x.details, "created_at": x.created_at.isoformat()} for x in rows]}
 
 @app.post("/api/v1/payments/initiate")
 def initiate_payment(payload:PaymentIntentRequest):
