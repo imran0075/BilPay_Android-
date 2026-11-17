@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071326">
+<title>BilPay Admin</title>
+<style>
+:root{color-scheme:dark;--bg:#071326;--panel:#10213a;--line:#ffffff1c;--gold:#f5c65c;--red:#d30d32;--text:#f6f8fc;--muted:#a9b8cc;--green:#62d9a2}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 90% 0,#193e5c66,transparent 34%),var(--bg);color:var(--text);font:15px/1.6 system-ui,"Noto Sans Bengali",sans-serif}.wrap{width:min(1120px,94%);margin:34px auto}.brand{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:900}.brand img{width:44px;height:44px;object-fit:contain;border-radius:12px}.muted{color:var(--muted)}.panel{background:linear-gradient(145deg,#142945,#0d1c32);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 20px 70px #0003}.login{max-width:430px;margin:55px auto}.login h1{margin:8px 0}.eyebrow{color:var(--gold);font-size:12px;letter-spacing:1.5px;font-weight:800}label{display:block;margin:15px 0 6px;color:#d6dfeb;font-size:13px}input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid var(--line);background:#08172a;color:white;font:inherit;outline:none}input:focus{border-color:var(--gold)}button{border:0;border-radius:11px;padding:12px 17px;background:linear-gradient(120deg,#ffe39a,#e7b13d);color:#172338;font-weight:850;font:inherit;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.primary{width:100%;margin-top:18px}.notice{font-size:12px;color:var(--muted);margin-top:16px}.error{color:#ff9cae;background:#d30d321c;border:1px solid #d30d3244;padding:10px 12px;border-radius:10px;margin-top:12px;display:none}.hidden{display:none!important}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}.top p{margin:3px 0}.actions{display:flex;gap:8px;flex-wrap:wrap}.secondary{background:#ffffff10;color:var(--text);border:1px solid var(--line)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tabs button{background:#ffffff0b;color:#dce5f1;border:1px solid var(--line)}.tabs button.active{background:var(--gold);color:#172338;border-color:var(--gold)}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{padding:18px;border:1px solid var(--line);background:#ffffff08;border-radius:15px}.stat small{display:block;color:var(--muted)}.stat strong{font-size:27px;display:block;margin-top:6px}.sectionTitle{margin:20px 0 12px}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;min-width:680px;font-size:13px}th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--gold);background:#ffffff08}td{color:#dce5f1}tr:last-child td{border-bottom:0}.status{color:var(--green)}.footer{font-size:12px;color:var(--muted);margin:18px 2px}.loading{color:var(--gold)}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.wrap{margin:20px auto}.panel{padding:16px}.login{margin:35px auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><img src="/bilpay-logo.svg" alt="BilPay"><span>BilPay <span style="color:var(--gold)">Admin</span></span></div>
+  <section id="loginPanel" class="panel login">
+    <div class="eyebrow">SECURE ADMIN ACCESS</div>
+    <h1>অ্যাডমিন লগইন</h1>
+    <p class="muted">আপনার BilPay অ্যাকাউন্ট দিয়ে লগইন করুন। সার্ভারে অনুমোদিত অ্যাডমিন নম্বর ছাড়া ড্যাশবোর্ড খোলা যাবে না।</p>
+    <form id="loginForm">
+      <label for="phone">বাংলাদেশি মোবাইল নম্বর</label>
+      <input id="phone" name="phone" inputmode="numeric" autocomplete="username" placeholder="01XXXXXXXXX" maxlength="11" required>
+      <label for="password">পাসওয়ার্ড</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+      <button id="loginButton" class="primary" type="submit">নিরাপদে লগইন</button>
+      <div id="loginError" class="error" role="alert"></div>
+    </form>
+    <p class="notice">সতর্কতা: OTP, PIN বা পাসওয়ার্ড কারও সঙ্গে শেয়ার করবেন না। এই প্যানেল কেবল পর্যবেক্ষণ ও রিপোর্টের জন্য; বাস্তব অর্থ লেনদেন বন্ধ।</p>
+  </section>
+
+  <section id="dashboard" class="hidden">
+    <div class="top">
+      <div><div class="eyebrow">CONTROL CENTRE</div><h1 style="margin:4px 0">অ্যাডমিন ড্যাশবোর্ড</h1><p id="welcome" class="muted"></p></div>
+      <div class="actions"><button class="secondary" id="refreshButton">রিফ্রেশ</button><button class="secondary" id="logoutButton">লগআউট</button></div>
+    </div>
+    <div class="panel">
+      <div class="eyebrow">READ ONLY • DEMO MODE</div>
+      <p class="muted">এই ড্যাশবোর্ডে ব্যবহারকারী ও পরীক্ষামূলক লেনদেন দেখা যায়। এখানে কোনো টাকা পাঠানো, ব্যালেন্স পরিবর্তন বা বাস্তব পেমেন্ট করা যায় না।</p>
+      <div id="stats" class="stats"></div>
+      <div class="tabs">
+        <button class="active" data-tab="users">ব্যবহারকারী</button>
+        <button data-tab="transactions">লেনদেন</button>
+        <button data-tab="audit">অডিট লগ</button>
+      </div>
+      <div id="tableArea"><p class="loading">তথ্য লোড হচ্ছে…</p></div>
+      <div id="dashError" class="error" role="alert"></div>
+    </div>
+    <p class="footer">BilPay Technologies • Admin access is restricted and monitored.</p>
+  </section>
+</div>
+<script>
+(() => {
+  "use strict";
+  const API = "https://bilpay-api-5b57.onrender.com/api/v1";
+  const $ = (id) => document.getElementById(id);
+  let token = sessionStorage.getItem("bilpay_admin_token") || "";
+  let activeTab = "users";
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  async function request(path, options={}) {
+    const res = await fetch(API + path, { ...options, headers: { "Content-Type":"application/json", ...(token ? {"Authorization":"Bearer "+token} : {}), ...(options.headers||{}) } });
+    const data = await res.json().catch(()=>({detail:"সার্ভার থেকে সঠিক উত্তর পাওয়া যায়নি।"}));
+    if (!res.ok) throw new Error(data.detail || ("HTTP " + res.status));
+    return data;
+  }
+  function showLogin(message="") {
+    $("loginPanel").classList.remove("hidden");
+    $("dashboard").classList.add("hidden");
+    $("loginError").style.display = message ? "block" : "none";
+    $("loginError").textContent = message;
+  }
+  function showDashboard(name) {
+    $("loginPanel").classList.add("hidden");
+    $("dashboard").classList.remove("hidden");
+    $("welcome").textContent = name ? "স্বাগতম, " + name : "আপনি নিরাপদ অ্যাডমিন সেশনে আছেন।";
+  }
+  function table(headers, rows) {
+    if (!rows.length) return '<p class="muted">এখনো কোনো রেকর্ড নেই।</p>';
+    return '<div class="tablewrap"><table><thead><tr>'+headers.map(h=>'<th>'+esc(h)+'</th>').join("")+'</tr></thead><tbody>'+
+      rows.map(row=>'<tr>'+row.map(v=>'<td>'+esc(v)+'</td>').join("")+'</tr>').join("")+'</tbody></table></div>';
+  }
+  async function loadOverview() {
+    const data = await request("/admin/overview");
+    $("stats").innerHTML = [
+      ["মোট ব্যবহারকারী",data.total_users],
+      ["মোট লেনদেন",data.total_transactions],
+      ["সফল টেস্ট",data.successful_test_records],
+      ["ব্যর্থ টেস্ট",data.failed_test_records]
+    ].map(([label,value])=>'<div class="stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>').join("");
+  }
+  async function loadTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll("[data-tab]").forEach(b=>b.classList.toggle("active",b.dataset.tab===tab));
+    $("dashError").style.display="none";
+    $("tableArea").innerHTML='<p class="loading">তথ্য লোড হচ্ছে…</p>';
+    try {
+      if(tab==="users") {
+        const d=await request("/admin/users?limit=100");
+        $("tableArea").innerHTML=table(["আইডি","নাম","মোবাইল","তৈরির সময়"],d.items.map(x=>[x.id,x.full_name||"—",x.phone,x.created_at]));
+      } else if(tab==="transactions") {
+        const d=await request("/admin/transactions?limit=100");
+        $("tableArea").innerHTML=table(["ট্রানজ্যাকশন আইডি","মোবাইল","সেবা","প্রোভাইডার","পরিমাণ","স্ট্যাটাস","মোড","সময়"],d.items.map(x=>[x.transaction_id,x.user_phone,x.service_id,x.provider_id,x.amount+" "+x.currency,x.status,x.mode,x.created_at]));
+      } else {
+        const d=await request("/admin/audit?limit=100");
+        $("tableArea").innerHTML=table(["অ্যাডমিন আইডি","কাজ","টার্গেট","বিবরণ","সময়"],d.items.map(x=>[x.admin_user_id,x.action,x.target,x.details,x.created_at]));
+      }
+    } catch(e) {
+      $("tableArea").innerHTML="";
+      $("dashError").textContent=e.message;
+      $("dashError").style.display="block";
+    }
+  }
+  async function refresh() {
+    try { await loadOverview(); await loadTab(activeTab); }
+    catch(e) {
+      if(/অনুমতি নেই|অ্যাডমিন অ্যাক্সেস|লগইন|সেশন/i.test(e.message)) {
+        sessionStorage.removeItem("bilpay_admin_token"); token=""; showLogin(e.message);
+      } else { $("dashError").textContent=e.message; $("dashError").style.display="block"; }
+    }
+  }
+  $("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button=$("loginButton"); button.disabled=true; button.textContent="যাচাই হচ্ছে…";
+    $("loginError").style.display="none";
+    try {
+      const phone=$("phone").value.trim();
+      const password=$("password").value;
+      const data=await fetch(API+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,password})}).then(async r=>{const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.detail||"লগইন ব্যর্থ হয়েছে।");return d;});
+      token=data.access_token;
+      sessionStorage.setItem("bilpay_admin_token",token);
+      $("password").value="";
+      showDashboard(data.user?.full_name);
+      await refresh();
+    } catch(e) { showLogin(e.message); }
+    finally { button.disabled=false; button.textContent="নিরাপদে লগইন"; }
+  });
+  document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>loadTab(b.dataset.tab)));
+  $("refreshButton").addEventListener("click",refresh);
+  $("logoutButton").addEventListener("click",()=>{sessionStorage.removeItem("bilpay_admin_token");token="";showLogin("আপনি লগআউট করেছেন।");});
+  if(token) { showDashboard(""); refresh(); }
+})();
+</script>
+</body>
+</html>
