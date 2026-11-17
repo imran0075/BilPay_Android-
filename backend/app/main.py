@@ -10,7 +10,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 from pwdlib import PasswordHash
-from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey, func
+from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
 
 db_url = os.getenv("DATABASE_URL", "").strip()
@@ -68,6 +68,12 @@ class AdminAuditLog(Base):
     details: Mapped[str] = mapped_column(String(500), default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
+class ServiceConfig(Base):
+    __tablename__ = "service_configs"
+    service_id: Mapped[str] = mapped_column(String(40), primary_key=True)
+    visible: Mapped[bool] = mapped_column(Boolean, default=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
 def get_db():
     db = SessionLocal()
     try:
@@ -118,6 +124,11 @@ def record_admin_action(db: Session, admin: User, action: str, target: str = "",
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        for item in SERVICES:
+            if db.get(ServiceConfig, item["id"]) is None:
+                db.add(ServiceConfig(service_id=item["id"], visible=True))
+        db.commit()
     yield
 
 app = FastAPI(title="BilPay API", description="Shared API foundation for BilPay Android, web and admin clients.", version="0.3.0", lifespan=lifespan)
@@ -130,8 +141,11 @@ SERVICES = [
  {"id":"water","name":"পানি বিল","category":"bill","enabled":False},
  {"id":"gas","name":"গ্যাস বিল","category":"bill","enabled":False},
  {"id":"internet","name":"ইন্টারনেট বিল","category":"bill","enabled":False},
- {"id":"mobile_recharge","name":"মোবাইল রিচার্জ","category":"bill","enabled":False},
+ {"id":"mobile_recharge","name":"মোবাইল রিচার্জ","category":"recharge","enabled":False},
+ {"id":"tv","name":"টিভি / ডিটিএইচ বিল","category":"bill","enabled":False},
+ {"id":"telephone","name":"টেলিফোন বিল","category":"bill","enabled":False},
  {"id":"education","name":"শিক্ষা ফি","category":"bill","enabled":False},
+ {"id":"hospital","name":"হাসপাতাল বিল","category":"bill","enabled":False},
  {"id":"government","name":"সরকারি ফি","category":"bill","enabled":False},
 ]
 PROVIDERS = [{"id":x,"name":n,"status":"awaiting_merchant_api"} for x,n in [("bkash","bKash"),("nagad","Nagad"),("rocket","Rocket"),("upay","Upay")]]
@@ -165,6 +179,8 @@ class PaymentIntentRequest(BaseModel):
     customer_reference: str = Field(min_length=3, max_length=80)
     customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     currency: Literal["BDT"] = "BDT"
+class ServiceVisibilityRequest(BaseModel):
+    visible: bool
 
 @app.get("/")
 def root():
@@ -176,8 +192,10 @@ def health():
 def status():
     return {"name":"BilPay","api_version":app.version,"status":"operational","test_mode_enabled":TEST_MODE_ENABLED,"live_transactions_enabled":False,"database_enabled":True,"provider_integrations":{p["id"]:p["status"] for p in PROVIDERS},"message":"বাস্তব লেনদেন চালুর আগে অনুমোদিত পার্টনার API সংযোগ প্রয়োজন।"}
 @app.get("/api/v1/services")
-def services():
-    return {"items":SERVICES}
+def services(db: Session = Depends(get_db)):
+    configs = {x.service_id: x.visible for x in db.scalars(select(ServiceConfig)).all()}
+    items = [{**item, "visible": configs.get(item["id"], True), "enabled": False} for item in SERVICES]
+    return {"items": items, "live_transactions_enabled": False, "message": "সেবা তালিকায় দেখা গেলেও বাস্তব পেমেন্ট এখনো বন্ধ।"}
 @app.get("/api/v1/providers")
 def providers():
     return {"items":PROVIDERS,"live_transactions_enabled":False,"message":"প্রতিটি সেবার অনুমোদিত API সংযোগ সম্পন্ন হলে চালু হবে।"}
@@ -222,6 +240,33 @@ def history(user:User=Depends(current_user),db:Session=Depends(get_db),limit:int
     limit=max(1,min(limit,100))
     rows=db.scalars(select(Transaction).where(Transaction.user_id==user.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
     return {"items":[{"transaction_id":r.transaction_id,"service_id":r.service_id,"provider_id":r.provider_id,"amount":str(r.amount),"currency":r.currency,"status":r.status,"mode":r.mode,"created_at":r.created_at.isoformat()} for r in rows]}
+
+@app.get("/api/v1/admin/services")
+def admin_services(admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    configs = {x.service_id: x.visible for x in db.scalars(select(ServiceConfig)).all()}
+    record_admin_action(db, admin, "view_services", "service_catalogue", "Viewed service visibility settings")
+    return {"items": [{**item, "visible": configs.get(item["id"], True), "enabled": False} for item in SERVICES],
+            "live_transactions_enabled": False,
+            "message": "অ্যাডমিন কেবল তালিকায় সেবা দেখানো বা লুকানোর নিয়ন্ত্রণ পান; বাস্তব পেমেন্ট চালু করতে পারেন না।"}
+
+@app.put("/api/v1/admin/services/{service_id}")
+def update_service_visibility(service_id: str, payload: ServiceVisibilityRequest,
+                              admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    item = next((x for x in SERVICES if x["id"] == service_id), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="সেবা পাওয়া যায়নি।")
+    config = db.get(ServiceConfig, service_id)
+    if config is None:
+        config = ServiceConfig(service_id=service_id, visible=payload.visible)
+        db.add(config)
+    else:
+        config.visible = payload.visible
+    db.commit()
+    record_admin_action(db, admin, "update_service_visibility", service_id,
+                        "visible=" + str(payload.visible).lower())
+    return {"service_id": service_id, "visible": config.visible, "enabled": False,
+            "live_transactions_enabled": False,
+            "message": "সেবার তালিকায় প্রদর্শনের অবস্থা আপডেট হয়েছে; বাস্তব পেমেন্ট বন্ধ আছে।"}
 
 @app.get("/api/v1/admin/overview")
 def admin_overview(admin: User = Depends(admin_user), db: Session = Depends(get_db)):
