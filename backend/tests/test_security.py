@@ -83,3 +83,59 @@ def test_admin_endpoint_allows_allowlisted_user_and_records_audit():
         )
     assert audit.status_code == 200
     assert any(item["action"] == "view_overview" for item in audit.json()["items"])
+
+
+def test_demo_payment_simulation_requires_authentication():
+    with test_client() as client:
+        response = client.post(
+            "/api/v1/test-payments/simulate",
+            json={
+                "service_id": "electricity",
+                "provider_id": "bkash",
+                "amount": "100.00",
+                "outcome": "success",
+                "currency": "BDT",
+            },
+        )
+    assert response.status_code == 401
+
+
+def test_demo_payment_does_not_change_wallet_and_is_user_scoped():
+    with test_client() as client:
+        first_token, _ = register(client)
+        second_token, _ = register(client)
+        first_headers = {"Authorization": f"Bearer {first_token}"}
+        second_headers = {"Authorization": f"Bearer {second_token}"}
+
+        before = client.get("/api/v1/wallet", headers=first_headers)
+        assert before.status_code == 200
+
+        simulated = client.post(
+            "/api/v1/test-payments/simulate",
+            headers=first_headers,
+            json={
+                "service_id": "electricity",
+                "provider_id": "bkash",
+                "amount": "100.00",
+                "outcome": "success",
+                "currency": "BDT",
+            },
+        )
+        assert simulated.status_code == 200
+        assert simulated.json()["mode"] == "TEST_ONLY"
+        assert simulated.json()["real_money_used"] is False
+        assert simulated.json()["wallet_balance_changed"] is False
+
+        after = client.get("/api/v1/wallet", headers=first_headers)
+        assert after.status_code == 200
+        assert after.json()["balance"] == before.json()["balance"]
+
+        first_history = client.get("/api/v1/transactions", headers=first_headers)
+        second_history = client.get("/api/v1/transactions", headers=second_headers)
+        assert first_history.status_code == 200
+        assert second_history.status_code == 200
+        assert any(
+            item["transaction_id"] == simulated.json()["transaction_id"]
+            for item in first_history.json()["items"]
+        )
+        assert second_history.json()["items"] == []
