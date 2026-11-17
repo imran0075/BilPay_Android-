@@ -262,7 +262,7 @@ def admin_audit(admin: User = Depends(admin_user), db: Session = Depends(get_db)
     return {"items": [{"id": x.id, "admin_user_id": x.admin_user_id, "action": x.action, "target": x.target, "details": x.details, "created_at": x.created_at.isoformat()} for x in rows]}
 
 @app.post("/api/v1/payments/initiate")
-def initiate_payment(payload:PaymentIntentRequest):
+def initiate_payment(payload:PaymentIntentRequest,user:User=Depends(current_user)):
     if not any(x["id"]==payload.service_id for x in SERVICES): raise HTTPException(status_code=404,detail="অজানা সেবা")
     provider=next((x for x in PROVIDERS if x["id"]==payload.provider_id),None)
     if provider is None: raise HTTPException(status_code=404,detail="অজানা পেমেন্ট প্রোভাইডার")
