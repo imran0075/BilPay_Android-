@@ -636,55 +636,22 @@ class MainActivity : Activity() {
             showInfo("সেবা এখনো চালু হয়নি", "এই আর্থিক সেবার অনুমোদিত পার্টনার API এখনো সংযুক্ত হয়নি। নিরাপত্তার জন্য এখানে কোনো স্থানীয় ডেমো ব্যালেন্স যোগ, বিয়োগ বা পরিবর্তন করা হবে না। বাস্তব লেনদেনও বন্ধ আছে।")
             return
         }
-        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
-        val current = prefs.getLong("balance", 50000L)
-        val title = when {
-            label.contains("অ্যাড") || label.contains("Cash In", true) -> "ডেমো অ্যাড মানি"
-            label.contains("সেন্ড") || label.contains("bKash", true) || label.contains("Nagad", true) || label.contains("Rocket", true) || label.contains("Upay", true) -> "ডেমো টাকা পাঠান"
-            label.contains("ক্যাশ") -> "ডেমো ক্যাশ আউট"
-            label.contains("ট্রান্সফার") -> "ডেমো ব্যাংক ট্রান্সফার"
-            label.contains("QR", true) -> "ডেমো QR পেমেন্ট"
-            label.contains("রিচার্জ") -> "ডেমো মোবাইল রিচার্জ"
-            label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") || label.contains("ইন্টারনেট") || label.contains("বিল") -> "ডেমো বিল পেমেন্ট • $label"
-            label.contains("হিসাব") || label.contains("লেনদেন") -> { showHistory(); return }
-            label.contains("প্রোফাইল") -> { showInfo("BilPay প্রোফাইল", "অ্যাকাউন্ট: ডেমো ব্যবহারকারী\nKYC: এখনো যাচাই হয়নি\nনিরাপত্তা: PIN/OTP মডিউল প্রস্তুতির পর্যায়ে"); return }
-            label.contains("নোটিফিকেশন") -> { showInfo("নোটিফিকেশন", "নতুন কোনো নোটিফিকেশন নেই।"); return }
-            else -> { showInfo(label, "এই সেবার ডেমো স্ক্রিন প্রস্তুত হচ্ছে।"); return }
+        if (label.contains("হিসাব") || label.contains("লেনদেন")) {
+            showHistory()
+            return
         }
-        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
-        val target = EditText(this).apply {
-            hint = if (title.contains("বিল")) "বিলার / কাস্টমার নম্বর" else "মোবাইল / অ্যাকাউন্ট নম্বর"
-            inputType = android.text.InputType.TYPE_CLASS_PHONE
+        if (label.contains("প্রোফাইল")) {
+            showProfile()
+            return
         }
-        val amount = EditText(this).apply {
-            hint = "টাকার পরিমাণ (৳)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+        if (label.contains("নোটিফিকেশন")) {
+            showInfo("নোটিফিকেশন", "নতুন কোনো নোটিফিকেশন নেই।")
+            return
         }
-        form.addView(target)
-        form.addView(amount)
-        android.app.AlertDialog.Builder(this)
-            .setTitle(title)
-            .setMessage("ডেমো ব্যালেন্স: ৳$current\nশুধু পরীক্ষার জন্য—বাস্তব টাকা কাটবে না বা পাঠানো হবে না।")
-            .setView(form)
-            .setNegativeButton("বাতিল", null)
-            .setPositiveButton("ডেমো নিশ্চিত করুন") { _, _ ->
-                val value = amount.text.toString().toLongOrNull()
-                if (value == null || value <= 0L) {
-                    showInfo("সঠিক পরিমাণ দিন", "টাকার পরিমাণ ১ বা তার বেশি হতে হবে।")
-                } else {
-                    val isAdd = title.contains("অ্যাড মানি")
-                    if (!isAdd && value > current) {
-                        showInfo("পর্যাপ্ত ব্যালেন্স নেই", "ডেমো ওয়ালেটে পর্যাপ্ত টাকা নেই।")
-                    } else {
-                        val updated = if (isAdd) current + value else current - value
-                        val recipient = target.text.toString().ifBlank { "ডেমো" }
-                        val record = "$title • ৳$value • $recipient"
-                        val old = prefs.getString("history", "") ?: ""
-                        prefs.edit().putLong("balance", updated).putString("history", (old + "\n" + record).trim()).apply()
-                        showInfo("ডেমো সম্পন্ন", "পরীক্ষামূলক রেকর্ড সংরক্ষিত হয়েছে।\nনতুন ডেমো ব্যালেন্স: ৳$updated\n\nবাস্তব লেনদেন হয়নি।")
-                    }
-                }
-            }.show()
+        showInfo(
+            "সেবা প্রস্তুত হচ্ছে",
+            "এই সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। নিরাপত্তার জন্য কোনো স্থানীয় ভুয়া ব্যালেন্স বা লেনদেনের রেকর্ড তৈরি করা হবে না। প্রয়োজনীয় পার্টনার API ও অনুমোদন যুক্ত হলে সেবাটি চালু হবে।"
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
