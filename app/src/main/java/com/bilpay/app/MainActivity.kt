@@ -881,28 +881,61 @@ class MainActivity : Activity() {
         walletBalanceView?.text = "সার্ভার ব্যালেন্স লোড হচ্ছে…"
         Thread {
             var display = "ব্যালেন্স পাওয়া যায়নি"
+            var connection: HttpURLConnection? = null
             try {
-                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/wallet").openConnection() as HttpURLConnection).apply {
+                connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/wallet").openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
-                    connectTimeout = 15000
-                    readTimeout = 15000
+                    connectTimeout = 20000
+                    readTimeout = 20000
+                    useCaches = false
                     setRequestProperty("Authorization", "Bearer $token")
                     setRequestProperty("Accept", "application/json")
+                    setRequestProperty("Cache-Control", "no-cache")
                 }
                 val code = connection.responseCode
-                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                connection.disconnect()
+                val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
                 if (code in 200..299) {
                     val json = JSONObject(body)
-                    val amount = json.optString("balance", "0.00").toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
-                    display = "৳" + String.format(java.util.Locale.US, "%,.2f", amount)
-                } else if (code == 401) {
-                    display = "আবার লগইন করুন"
-                    securePrefs().edit().clear().apply()
+                    if (!json.has("balance") || json.isNull("balance")) {
+                        display = "সার্ভারের উত্তরে ব্যালেন্স নেই (HTTP $code)"
+                    } else {
+                        val rawBalance = json.getString("balance")
+                        val amount = rawBalance.toBigDecimalOrNull()
+                        display = if (amount != null) {
+                            "৳" + String.format(java.util.Locale.US, "%,.2f", amount)
+                        } else {
+                            "ব্যালেন্সের তথ্য সঠিক নয় (HTTP $code)"
+                        }
+                    }
+                } else {
+                    val detail = try {
+                        val errorJson = JSONObject(body)
+                        val value = errorJson.opt("detail")
+                        if (value is String) value else ""
+                    } catch (_: Exception) { "" }
+                    display = when (code) {
+                        401 -> {
+                            securePrefs().edit().remove("access_token").apply()
+                            "লগইন সেশনের মেয়াদ শেষ—আবার লগইন করুন (401)"
+                        }
+                        403 -> "ব্যালেন্স দেখার অনুমতি নেই (403)"
+                        404 -> "সার্ভারের ওয়ালেট API পাওয়া যায়নি (404)"
+                        in 500..599 -> "সার্ভারে সাময়িক সমস্যা (HTTP $code)"
+                        else -> "সার্ভার অনুরোধ গ্রহণ করেনি (HTTP $code)" +
+                            if (detail.isNotBlank()) ": " + detail.take(90) else ""
+                    }
                 }
-            } catch (_: Exception) {
-                display = "সার্ভার ব্যালেন্স পাওয়া যায়নি"
+            } catch (e: Exception) {
+                val reason = when (e) {
+                    is java.net.SocketTimeoutException -> "সময় শেষ হয়েছে"
+                    is java.net.UnknownHostException -> "সার্ভারের ঠিকানা পাওয়া যায়নি"
+                    is java.io.IOException -> "ইন্টারনেট সংযোগে সমস্যা"
+                    else -> "তথ্য পড়তে সমস্যা হয়েছে"
+                }
+                display = "ব্যালেন্স লোড হয়নি: $reason"
+            } finally {
+                connection?.disconnect()
             }
             runOnUiThread { walletBalanceView?.text = display }
         }.start()
