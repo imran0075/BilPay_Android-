@@ -139,3 +139,34 @@ def test_demo_payment_does_not_change_wallet_and_is_user_scoped():
             for item in first_history.json()["items"]
         )
         assert second_history.json()["items"] == []
+
+
+def test_invalid_token_cannot_access_profile_wallet_or_history():
+    headers = {"Authorization": "Bearer not-a-valid-jwt"}
+    with test_client() as client:
+        profile = client.get("/api/v1/auth/me", headers=headers)
+        wallet = client.get("/api/v1/wallet", headers=headers)
+        history = client.get("/api/v1/transactions", headers=headers)
+
+    assert profile.status_code == 401
+    assert wallet.status_code == 401
+    assert history.status_code == 401
+
+
+def test_registration_response_never_exposes_password_or_password_hash():
+    with test_client() as client:
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "phone": "017" + str(uuid4().int % 100_000_000).zfill(8),
+                "password": "test-password-123",
+                "full_name": "Privacy Test",
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "password" not in payload
+    assert "password_hash" not in payload
+    assert "password" not in payload["user"]
+    assert "password_hash" not in payload["user"]
