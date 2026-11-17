@@ -34,12 +34,13 @@
       <div class="actions"><button class="secondary" id="refreshButton">রিফ্রেশ</button><button class="secondary" id="logoutButton">লগআউট</button></div>
     </div>
     <div class="panel">
-      <div class="eyebrow">READ ONLY • DEMO MODE</div>
-      <p class="muted">এই ড্যাশবোর্ডে ব্যবহারকারী ও পরীক্ষামূলক লেনদেন দেখা যায়। এখানে কোনো টাকা পাঠানো, ব্যালেন্স পরিবর্তন বা বাস্তব পেমেন্ট করা যায় না।</p>
+      <div class="eyebrow">SERVICE CONTROLS • REAL PAYMENTS OFF</div>
+      <p class="muted">ব্যবহারকারী ও পরীক্ষামূলক লেনদেন দেখুন এবং সেবা তালিকায় কোন সেবা দেখাবে তা নিয়ন্ত্রণ করুন। এখানে টাকা পাঠানো, ব্যালেন্স পরিবর্তন বা বাস্তব পেমেন্ট চালু করা যায় না।</p>
       <div id="stats" class="stats"></div>
       <div class="tabs">
         <button class="active" data-tab="users">ব্যবহারকারী</button>
         <button data-tab="transactions">লেনদেন</button>
+        <button data-tab="services">সার্ভিস নিয়ন্ত্রণ</button>
         <button data-tab="audit">অডিট লগ</button>
       </div>
       <div id="tableArea"><p class="loading">তথ্য লোড হচ্ছে…</p></div>
@@ -99,6 +100,16 @@
       } else if(tab==="transactions") {
         const d=await request("/admin/transactions?limit=100");
         $("tableArea").innerHTML=table(["ট্রানজ্যাকশন আইডি","মোবাইল","সেবা","প্রোভাইডার","পরিমাণ","স্ট্যাটাস","মোড","সময়"],d.items.map(x=>[x.transaction_id,x.user_phone,x.service_id,x.provider_id,x.amount+" "+x.currency,x.status,x.mode,x.created_at]));
+      } else if(tab==="services") {
+        const d=await request("/admin/services");
+        $("tableArea").innerHTML='<div class="tablewrap"><table><thead><tr><th>সেবা</th><th>ধরন</th><th>অ্যাপে প্রদর্শন</th><th>বাস্তব পেমেন্ট</th><th>নিয়ন্ত্রণ</th></tr></thead><tbody>'+
+          d.items.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.category)+'</td><td>'+ (x.visible?'দেখানো হচ্ছে':'লুকানো') +'</td><td>বন্ধ</td><td><button class="secondary" data-service="'+esc(x.id)+'" data-visible="'+(!x.visible)+'">'+(x.visible?'লুকান':'দেখান')+'</button></td></tr>').join('')+
+          '</tbody></table></div><p class="notice">এই নিয়ন্ত্রণ শুধু অ্যাপে সেবা দেখানো বা লুকানোর জন্য। কোনো অবস্থাতেই এটি বাস্তব পেমেন্ট চালু করে না।';
+        $("tableArea").querySelectorAll("[data-service]").forEach(button=>button.addEventListener("click",async()=>{
+          button.disabled=true;
+          try { await request("/admin/services/"+encodeURIComponent(button.dataset.service),{method:"PUT",body:JSON.stringify({visible:button.dataset.visible==="true"})}); await loadTab("services"); }
+          catch(e) { $("dashError").textContent=e.message; $("dashError").style.display="block"; button.disabled=false; }
+        }));
       } else {
         const d=await request("/admin/audit?limit=100");
         $("tableArea").innerHTML=table(["অ্যাডমিন আইডি","কাজ","টার্গেট","বিবরণ","সময়"],d.items.map(x=>[x.admin_user_id,x.action,x.target,x.details,x.created_at]));
