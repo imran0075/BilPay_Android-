@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.net.Uri
 import android.os.Environment
 import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -39,8 +40,10 @@ class MainActivity : Activity() {
         TextView(this).apply { text = value; textSize = size; setTextColor(color); if (bold) setTypeface(null, Typeface.BOLD) }
     private val demoTransactions = mutableListOf<String>()
 
-    private var pendingApkDownload: Long = -1L
+    private val updateState by lazy { getSharedPreferences("bilpay_update_state", Context.MODE_PRIVATE) }
     private var downloadReceiver: BroadcastReceiver? = null
+    private var permissionSettingsOpened = false
+    private var installerLaunched = false
 
     private fun checkForUpdate() {
         Thread {
@@ -48,6 +51,7 @@ class MainActivity : Activity() {
                 val connection = (URL("https://raw.githubusercontent.com/imran0075/BilPay_Android-/main/version.json").openConnection() as HttpURLConnection).apply {
                     connectTimeout = 10000
                     readTimeout = 10000
+                    setRequestProperty("Cache-Control", "no-cache")
                 }
                 val body = connection.inputStream.bufferedReader().use { it.readText() }
                 connection.disconnect()
@@ -59,18 +63,47 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         android.app.AlertDialog.Builder(this)
                             .setTitle("নতুন BilPay আপডেট")
-                            .setMessage("নতুন সংস্করণ $latestName পাওয়া গেছে।")
+                            .setMessage("নতুন সংস্করণ $latestName পাওয়া গেছে। আপডেট ডাউনলোড করে ইনস্টল করতে পারবেন।")
                             .setNegativeButton("পরে", null)
                             .setPositiveButton("আপডেট করুন") { _, _ -> downloadUpdate(apkUrl) }
                             .show()
                     }
                 }
-            } catch (_: Exception) { }
+            } catch (_: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "আপডেট খোঁজা যায়নি। পরে আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
+                }
+            }
         }.start()
+    }
+
+    private fun updateApkFile(): File =
+        File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "BilPay-update.apk")
+
+    private fun ensureDownloadReceiver() {
+        if (downloadReceiver != null) return
+        downloadReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val expectedId = updateState.getLong("download_id", -1L)
+                val receivedId = intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) ?: -1L
+                if (expectedId > 0L && receivedId == expectedId) inspectDownload(expectedId)
+            }
+        }
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(downloadReceiver, filter)
+        }
     }
 
     private fun downloadUpdate(apkUrl: String) {
         try {
+            ensureDownloadReceiver()
+            installerLaunched = false
+            permissionSettingsOpened = false
+            updateApkFile().delete()
+            updateState.edit().putBoolean("apk_ready", false).apply()
             val request = DownloadManager.Request(Uri.parse(apkUrl))
                 .setTitle("BilPay আপডেট")
                 .setDescription("নতুন সংস্করণ ডাউনলোড হচ্ছে")
@@ -78,38 +111,95 @@ class MainActivity : Activity() {
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "BilPay-update.apk")
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            pendingApkDownload = manager.enqueue(request)
-            downloadReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent?.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L) != pendingApkDownload) return
-                    try {
-                        val cursor = manager.query(DownloadManager.Query().setFilterById(pendingApkDownload))
-                        val success = cursor.use { it.moveToFirst() && it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS)) == DownloadManager.STATUS_SUCCESSFUL }
-                        if (success) {
-                            val apk = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "BilPay-update.apk")
-                            val uri = FileProvider.getUriForFile(this@MainActivity, "$packageName.fileprovider", apk)
-                            startActivity(Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/vnd.android.package-archive")
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                            })
-                        } else Toast.makeText(this@MainActivity, "ডাউনলোড সম্পন্ন হয়নি।", Toast.LENGTH_LONG).show()
-                    } catch (_: Exception) {
-                        Toast.makeText(this@MainActivity, "আপডেট ইনস্টল চালু করা যায়নি।", Toast.LENGTH_LONG).show()
-                    } finally { unregisterDownloadReceiver() }
+            val downloadId = manager.enqueue(request)
+            updateState.edit().putLong("download_id", downloadId).apply()
+            Toast.makeText(this, "আপডেট ডাউনলোড শুরু হয়েছে। শেষ হলে ইনস্টল করার নির্দেশনা আসবে।", Toast.LENGTH_LONG).show()
+        } catch (_: Exception) {
+            Toast.makeText(this, "আপডেট ডাউনলোড শুরু করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করুন।", Toast.LENGTH_LONG).show()
+            unregisterDownloadReceiver()
+        }
+    }
+
+    private fun inspectDownload(downloadId: Long) {
+        try {
+            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val cursor = manager.query(DownloadManager.Query().setFilterById(downloadId))
+            val status = cursor.use {
+                if (it.moveToFirst()) it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
+                else DownloadManager.STATUS_FAILED
+            }
+            when (status) {
+                DownloadManager.STATUS_SUCCESSFUL -> {
+                    updateState.edit().putBoolean("apk_ready", true).putLong("download_id", -1L).apply()
+                    runOnUiThread { launchInstallerOrPermission() }
+                }
+                DownloadManager.STATUS_FAILED -> {
+                    val reasonCursor = manager.query(DownloadManager.Query().setFilterById(downloadId))
+                    val reason = reasonCursor.use {
+                        if (it.moveToFirst()) it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                        else -1
+                    }
+                    updateState.edit().putLong("download_id", -1L).apply()
+                    runOnUiThread {
+                        Toast.makeText(this, "আপডেট ডাউনলোড ব্যর্থ হয়েছে (কোড $reason)। আবার চেষ্টা করুন।", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
-            val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-            if (Build.VERSION.SDK_INT >= 33) registerReceiver(downloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            else registerReceiver(downloadReceiver, filter)
-            Toast.makeText(this, "আপডেট ডাউনলোড শুরু হয়েছে", Toast.LENGTH_LONG).show()
         } catch (_: Exception) {
-            Toast.makeText(this, "আপডেট ডাউনলোড শুরু করা যায়নি", Toast.LENGTH_LONG).show()
+            runOnUiThread {
+                Toast.makeText(this, "ডাউনলোডের অবস্থা যাচাই করা যায়নি। আবার অ্যাপ খুলে দেখুন।", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun launchInstallerOrPermission() {
+        if (!updateState.getBoolean("apk_ready", false) || installerLaunched) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
+            if (!permissionSettingsOpened) {
+                permissionSettingsOpened = true
+                Toast.makeText(this, "BilPay-এর জন্য APK ইনস্টল করার অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
+                try {
+                    startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                } catch (_: Exception) {
+                    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+                }
+            }
+            return
+        }
+        val apk = updateApkFile()
+        if (!apk.exists() || apk.length() == 0L) {
+            updateState.edit().putBoolean("apk_ready", false).apply()
+            Toast.makeText(this, "আপডেট APK ফাইল পাওয়া যায়নি। আবার ডাউনলোড করুন।", Toast.LENGTH_LONG).show()
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apk)
+            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            installerLaunched = true
+            startActivity(installIntent)
+        } catch (_: Exception) {
+            installerLaunched = false
+            Toast.makeText(this, "ইনস্টলার খোলা যায়নি। Settings থেকে BilPay-এর unknown-app install অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun unregisterDownloadReceiver() {
         downloadReceiver?.let { try { unregisterReceiver(it) } catch (_: Exception) {} }
         downloadReceiver = null
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val downloadId = updateState.getLong("download_id", -1L)
+        if (downloadId > 0L) {
+            ensureDownloadReceiver()
+            inspectDownload(downloadId)
+        } else if (updateState.getBoolean("apk_ready", false)) {
+            launchInstallerOrPermission()
+        }
     }
 
     override fun onDestroy() {
