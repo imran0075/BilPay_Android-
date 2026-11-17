@@ -1,8 +1,10 @@
 import os
+from uuid import uuid4
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test_bilpay_security.db")
 os.environ.setdefault("BILPAY_JWT_SECRET", "test-only-secret-that-is-long-enough-123456")
 os.environ.setdefault("BILPAY_TEST_MODE", "true")
+os.environ.setdefault("BILPAY_ADMIN_PHONES", "01799999999")
 
 from fastapi.testclient import TestClient
 from app.main import app
@@ -12,13 +14,14 @@ def test_client():
     return TestClient(app)
 
 
-def register(client, phone):
+def register(client):
+    phone = "017" + uuid4().hex[:8]
     response = client.post(
         "/api/v1/auth/register",
         json={"phone": phone, "password": "test-password-123", "full_name": "Test User"},
     )
     assert response.status_code == 200
-    return response.json()["access_token"]
+    return response.json()["access_token"], phone
 
 
 def test_payment_initiation_requires_authentication():
@@ -38,7 +41,7 @@ def test_payment_initiation_requires_authentication():
 
 def test_authenticated_payment_intent_still_blocks_unconfigured_provider():
     with test_client() as client:
-        token = register(client, "01700000001")
+        token, _ = register(client)
         response = client.post(
             "/api/v1/payments/initiate",
             headers={"Authorization": f"Bearer {token}"},
@@ -56,7 +59,7 @@ def test_authenticated_payment_intent_still_blocks_unconfigured_provider():
 
 def test_admin_endpoints_deny_non_admin_user():
     with test_client() as client:
-        token = register(client, "01700000002")
+        token, _ = register(client)
         response = client.get(
             "/api/v1/admin/overview",
             headers={"Authorization": f"Bearer {token}"},
@@ -66,8 +69,8 @@ def test_admin_endpoints_deny_non_admin_user():
 
 def test_admin_endpoint_allows_allowlisted_user_and_records_audit():
     with test_client() as client:
-        token = register(client, "01700000003")
-        os.environ["BILPAY_ADMIN_PHONES"] = "01700000003"
+        token, phone = register(client)
+        os.environ["BILPAY_ADMIN_PHONES"] = phone
         response = client.get(
             "/api/v1/admin/overview",
             headers={"Authorization": f"Bearer {token}"},
