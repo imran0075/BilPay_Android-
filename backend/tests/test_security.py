@@ -15,7 +15,7 @@ def test_client():
 
 
 def register(client):
-    phone = "017" + uuid4().hex[:8]
+    phone = "017" + str(uuid4().int % 100_000_000).zfill(8)
     response = client.post(
         "/api/v1/auth/register",
         json={"phone": phone, "password": "test-password-123", "full_name": "Test User"},
