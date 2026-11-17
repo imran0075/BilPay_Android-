@@ -59,13 +59,14 @@ class MainActivity : Activity() {
                 val latestCode = info.optInt("versionCode", 1)
                 val latestName = info.optString("versionName", "")
                 val apkUrl = info.optString("apkUrl", "")
-                if (latestCode > BuildConfig.VERSION_CODE && apkUrl.startsWith("https://")) {
+                val apkSha256 = info.optString("apkSha256", "").lowercase()
+                if (latestCode > BuildConfig.VERSION_CODE && apkUrl.startsWith("https://") && apkSha256.matches(Regex("^[a-f0-9]{64}$"))) {
                     runOnUiThread {
                         android.app.AlertDialog.Builder(this)
                             .setTitle("নতুন BilPay আপডেট")
                             .setMessage("নতুন সংস্করণ $latestName পাওয়া গেছে। আপডেট ডাউনলোড করে ইনস্টল করতে পারবেন।")
                             .setNegativeButton("পরে", null)
-                            .setPositiveButton("আপডেট করুন") { _, _ -> downloadUpdate(apkUrl) }
+                            .setPositiveButton("আপডেট করুন") { _, _ -> downloadUpdate(apkUrl, apkSha256) }
                             .show()
                     }
                 }
@@ -97,13 +98,13 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun downloadUpdate(apkUrl: String) {
+    private fun downloadUpdate(apkUrl: String, expectedSha256: String) {
         try {
             ensureDownloadReceiver()
             installerLaunched = false
             permissionSettingsOpened = false
             updateApkFile().delete()
-            updateState.edit().putBoolean("apk_ready", false).apply()
+            updateState.edit().putBoolean("apk_ready", false).putString("expected_sha256", expectedSha256).apply()
             val request = DownloadManager.Request(Uri.parse(apkUrl))
                 .setTitle("BilPay আপডেট")
                 .setDescription("নতুন সংস্করণ ডাউনলোড হচ্ছে")
@@ -130,6 +131,17 @@ class MainActivity : Activity() {
             }
             when (status) {
                 DownloadManager.STATUS_SUCCESSFUL -> {
+                    val apk = updateApkFile()
+                    val expectedSha256 = updateState.getString("expected_sha256", "") ?: ""
+                    val actualSha256 = if (apk.exists()) sha256(apk) else ""
+                    if (!expectedSha256.matches(Regex("^[a-f0-9]{64}$")) || actualSha256 != expectedSha256) {
+                        apk.delete()
+                        updateState.edit().putBoolean("apk_ready", false).putLong("download_id", -1L).remove("expected_sha256").apply()
+                        runOnUiThread {
+                            Toast.makeText(this, "আপডেট ফাইলের নিরাপত্তা যাচাই মেলেনি। ইনস্টল করা হয়নি।", Toast.LENGTH_LONG).show()
+                        }
+                        return
+                    }
                     updateState.edit().putBoolean("apk_ready", true).putLong("download_id", -1L).apply()
                     runOnUiThread { launchInstallerOrPermission() }
                 }
@@ -150,6 +162,19 @@ class MainActivity : Activity() {
                 Toast.makeText(this, "ডাউনলোডের অবস্থা যাচাই করা যায়নি। আবার অ্যাপ খুলে দেখুন।", Toast.LENGTH_LONG).show()
             }
         }
+    }
+
+    private fun sha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        return digest.digest().joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
     }
 
     private fun launchInstallerOrPermission() {
