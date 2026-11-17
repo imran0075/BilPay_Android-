@@ -30,6 +30,7 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Run security tests
         env:
+          PYTHONPATH: .
           DATABASE_URL: sqlite:///./ci_bilpay.db
           BILPAY_JWT_SECRET: ci-only-secret-that-is-long-enough-123456
           BILPAY_TEST_MODE: "true"
