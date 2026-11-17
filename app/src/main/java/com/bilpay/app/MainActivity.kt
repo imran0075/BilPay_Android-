@@ -263,17 +263,63 @@ class MainActivity : Activity() {
     }
 
     private fun showServices() {
-        val items = arrayOf(
-            "বিদ্যুৎ বিল", "পানি বিল", "গ্যাস বিল", "ইন্টারনেট বিল",
-            "মোবাইল রিচার্জ", "টিভি / DTH", "টেলিফোন বিল", "শিক্ষা ফি",
-            "হাসপাতাল বিল", "সরকারি ফি", "bKash", "Nagad", "Rocket", "Upay",
-            "QR পে", "ব্যাংক ট্রান্সফার"
-        )
-        android.app.AlertDialog.Builder(this)
-            .setTitle("BilPay • সকল সেবা")
-            .setItems(items) { _, which -> action(items[which]) }
-            .setNegativeButton("বন্ধ", null)
-            .show()
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("সার্ভিস তালিকা আনা হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            val items = mutableListOf<String>()
+            var error = ""
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/services").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    setRequestProperty("Accept", "application/json")
+                }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code !in 200..299) {
+                    error = "সার্ভার উত্তর দিয়েছে (HTTP $code)।"
+                } else {
+                    val catalogue = JSONObject(body).optJSONArray("items")
+                    if (catalogue == null) {
+                        error = "সার্ভিস তালিকার তথ্য সঠিক নয়।"
+                    } else {
+                        for (index in 0 until catalogue.length()) {
+                            val item = catalogue.optJSONObject(index) ?: continue
+                            if (item.optBoolean("visible", true)) {
+                                val name = item.optString("name").trim()
+                                if (name.isNotEmpty()) items.add(name)
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                error = "সার্ভিস তালিকা আনা যায়নি: " + (e.localizedMessage ?: "সংযোগ সমস্যা")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                if (error.isNotEmpty()) {
+                    showInfo("সার্ভিস লোড হয়নি", error + "\nইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।")
+                    return@runOnUiThread
+                }
+                items.addAll(listOf("bKash", "Nagad", "Rocket", "Upay", "QR পে", "ব্যাংক ট্রান্সফার"))
+                if (items.isEmpty()) {
+                    showInfo("সার্ভিস তালিকা", "অ্যাডমিন বর্তমানে কোনো বিল বা রিচার্জ সেবা প্রদর্শনের জন্য চালু রাখেননি।")
+                    return@runOnUiThread
+                }
+                val labels = items.toTypedArray()
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("BilPay • সকল সেবা")
+                    .setItems(labels) { _, which -> action(labels[which]) }
+                    .setNegativeButton("বন্ধ", null)
+                    .show()
+            }
+        }.start()
     }
 
     private fun securePrefs() = EncryptedSharedPreferences.create(
