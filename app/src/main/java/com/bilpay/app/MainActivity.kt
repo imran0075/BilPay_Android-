@@ -319,7 +319,7 @@ class MainActivity : Activity() {
                     val user = JSONObject(body)
                     val name = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
                     val phone = user.optString("phone")
-                    message = "নাম: $name\nমোবাইল: $phone\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\n\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\n\nওয়ালেট ব্যালেন্স: এখনো চালু হয়নি। কোনো বাস্তব টাকা সংরক্ষিত নেই।"
+                    message = "নাম: $name\nমোবাইল: $phone\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\n\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\n\nওয়ালেট: সার্ভার-সংযুক্ত DEMO WALLET\nব্যালেন্স দেখতে হোম স্ক্রিনের Wallet Balance অংশ দেখুন।\n\nগুরুত্বপূর্ণ: এটি পরীক্ষামূলক ব্যালেন্স; বাস্তব টাকা নয় এবং বাস্তব লেনদেন চালু নেই।"
                 } else if (code == 401) {
                     sessionExpired = true
                     title = "আবার লগইন করুন"
