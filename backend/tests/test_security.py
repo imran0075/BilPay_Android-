@@ -170,3 +170,18 @@ def test_registration_response_never_exposes_password_or_password_hash():
     assert "password_hash" not in payload
     assert "password" not in payload["user"]
     assert "password_hash" not in payload["user"]
+
+
+def test_admin_service_visibility_put_is_allowed_by_cors_preflight():
+    with test_client() as client:
+        response = client.options(
+            "/api/v1/admin/services/electricity",
+            headers={
+                "Origin": "https://bilpay-official.onrender.com",
+                "Access-Control-Request-Method": "PUT",
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "PUT" in response.headers["access-control-allow-methods"]
