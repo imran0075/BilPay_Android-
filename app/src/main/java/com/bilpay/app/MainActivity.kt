@@ -629,6 +629,13 @@ class MainActivity : Activity() {
             showInfo("সেবা প্রস্তুত হচ্ছে", "এই সেবার API এখনো BilPay সার্ভারে যুক্ত হয়নি। বর্তমানে বিদ্যুৎ, পানি, গ্যাস, ইন্টারনেট, মোবাইল রিচার্জ, শিক্ষা ও সরকারি ফি-এর পরীক্ষামূলক API অনুরোধ করা যাবে।")
             return
         }
+        if (label.contains("অ্যাড") || label.contains("সেন্ড") || label.contains("ক্যাশ") ||
+            label.contains("ট্রান্সফার") || label.contains("QR", true) ||
+            label.contains("bKash", true) || label.contains("Nagad", true) ||
+            label.contains("Rocket", true) || label.contains("Upay", true)) {
+            showInfo("সেবা এখনো চালু হয়নি", "এই আর্থিক সেবার অনুমোদিত পার্টনার API এখনো সংযুক্ত হয়নি। নিরাপত্তার জন্য এখানে কোনো স্থানীয় ডেমো ব্যালেন্স যোগ, বিয়োগ বা পরিবর্তন করা হবে না। বাস্তব লেনদেনও বন্ধ আছে।")
+            return
+        }
         val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
         val current = prefs.getLong("balance", 50000L)
         val title = when {
