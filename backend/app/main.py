@@ -106,6 +106,15 @@ def admin_user(user: User = Depends(current_user)):
         raise HTTPException(status_code=403, detail="এই অংশ ব্যবহারের অনুমতি নেই।")
     return user
 
+def record_admin_action(db: Session, admin: User, action: str, target: str = "", details: str = ""):
+    db.add(AdminAuditLog(
+        admin_user_id=admin.id,
+        action=action[:60],
+        target=target[:100],
+        details=details[:500]
+    ))
+    db.commit()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
@@ -220,6 +229,7 @@ def admin_overview(admin: User = Depends(admin_user), db: Session = Depends(get_
     total_transactions = db.scalar(select(func.count()).select_from(Transaction)) or 0
     successful_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "success")) or 0
     failed_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "failed")) or 0
+    record_admin_action(db, admin, "view_overview", "dashboard", "Read dashboard totals")
     return {
         "mode": "ADMIN_READ_ONLY",
         "total_users": total_users,
@@ -234,17 +244,20 @@ def admin_overview(admin: User = Depends(admin_user), db: Session = Depends(get_
 def admin_users(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
     limit = max(1, min(limit, 100))
     rows = db.scalars(select(User).order_by(User.created_at.desc()).limit(limit)).all()
+    record_admin_action(db, admin, "view_users", "users", f"Viewed up to {limit} users")
     return {"items": [{"id": u.id, "phone": u.phone, "full_name": u.full_name, "created_at": u.created_at.isoformat()} for u in rows]}
 
 @app.get("/api/v1/admin/transactions")
 def admin_transactions(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
     limit = max(1, min(limit, 100))
     rows = db.execute(select(Transaction, User.phone).join(User, Transaction.user_id == User.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
+    record_admin_action(db, admin, "view_transactions", "transactions", f"Viewed up to {limit} transactions")
     return {"items": [{"transaction_id": t.transaction_id, "user_phone": phone, "service_id": t.service_id, "provider_id": t.provider_id, "amount": str(t.amount), "currency": t.currency, "status": t.status, "mode": t.mode, "created_at": t.created_at.isoformat()} for t, phone in rows]}
 
 @app.get("/api/v1/admin/audit")
 def admin_audit(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
     limit = max(1, min(limit, 100))
+    record_admin_action(db, admin, "view_audit_log", "audit", f"Viewed up to {limit} audit entries")
     rows = db.scalars(select(AdminAuditLog).order_by(AdminAuditLog.created_at.desc()).limit(limit)).all()
     return {"items": [{"id": x.id, "admin_user_id": x.admin_user_id, "action": x.action, "target": x.target, "details": x.details, "created_at": x.created_at.isoformat()} for x in rows]}
 
