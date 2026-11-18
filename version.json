@@ -1,6 +1,5 @@
 {
-  "versionCode": 12,
-  "versionName": "1.2.0",
-  "apkUrl": "https://github.com/imran0075/BilPay_Android-/releases/download/bilpay-latest/app-release.apk",
-  "apkSha256": "788defe5646f36d674b040acd34ec5f870c0122a38a5c334aec9e2fa3f1a7411"
+  "versionCode": 13,
+  "versionName": "1.3.0",
+  "apkUrl": "https://github.com/imran0075/BilPay_Android-/releases/download/bilpay-latest/app-release.apk"
 }

@@ -332,12 +332,14 @@ class MainActivity : Activity() {
                     showInfo("সার্ভিস লোড হয়নি", error + "\nইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।")
                     return@runOnUiThread
                 }
-                items.addAll(listOf("bKash", "Nagad", "Rocket", "Upay", "QR পে", "ব্যাংক ট্রান্সফার"))
+                // Only show services explicitly made visible in the server catalogue.
+                // Do not append hard-coded wallet/transfer providers: visibility must be
+                // controlled centrally and unavailable financial actions must not look live.
                 if (items.isEmpty()) {
-                    showInfo("সার্ভিস তালিকা", "অ্যাডমিন বর্তমানে কোনো বিল বা রিচার্জ সেবা প্রদর্শনের জন্য চালু রাখেননি।")
+                    showInfo("সার্ভিস তালিকা", "অ্যাডমিন বর্তমানে কোনো সেবা প্রদর্শনের জন্য চালু রাখেননি।")
                     return@runOnUiThread
                 }
-                val labels = items.toTypedArray()
+                val labels = items.distinct().toTypedArray()
                 android.app.AlertDialog.Builder(this)
                     .setTitle("BilPay • সকল সেবা")
                     .setItems(labels) { _, which -> action(labels[which]) }
@@ -886,6 +888,10 @@ class MainActivity : Activity() {
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         apiStatus = text("ডেমো মোড সক্রিয় • বাস্তব পেমেন্ট বন্ধ", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
+        page.addView(text("BilPay Android v1.3.0", 9f, soft).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(8), 0, 0)
+        })
 
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
