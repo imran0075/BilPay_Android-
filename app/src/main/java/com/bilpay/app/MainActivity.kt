@@ -853,23 +853,18 @@ class MainActivity : Activity() {
         section(page, "বিল পেমেন্ট", "প্রয়োজনীয় সব বিল সহজে পরিশোধ করুন")
         grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
 
-        section(page, "মোবাইল ফিন্যান্স", "এক জায়গায় জনপ্রিয় মোবাইল ব্যাংকিং")
-        val providers = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        listOf("bKash","Nagad","Rocket","Upay").forEachIndexed { i, name ->
-            val colors = intArrayOf(Color.rgb(220,35,105), Color.rgb(239,105,25), Color.rgb(110,42,150), Color.rgb(0,145,105))
-            val tile = TextView(this).apply {
-                text = name
-                textSize = 12f
-                typeface = Typeface.create("sans-serif", Typeface.BOLD)
-                setTextColor(colors[i])
-                gravity = Gravity.CENTER
-                background = shape(Color.WHITE, 14)
-                elevation = dp(2).toFloat()
-                setOnClickListener { action(name) }
-            }
-            providers.addView(tile, LinearLayout.LayoutParams(0, dp(58), 1f).apply { marginEnd = dp(7) })
+        section(page, "মোবাইল ফিন্যান্স", "অনুমোদিত পার্টনার যুক্ত হলে সেবাগুলো এখানে দেখাবে")
+        val financeNotice = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(15), dp(16), dp(15))
+            background = shape(Color.WHITE, 17)
+            elevation = dp(2).toFloat()
         }
-        page.addView(providers)
+        financeNotice.addView(text("মোবাইল ব্যাংকিং সেবা প্রস্তুত হচ্ছে", 13f, ink, true))
+        financeNotice.addView(text("bKash, Nagad, Rocket ও Upay-এর অনুমোদিত API/চুক্তি এখনো যুক্ত হয়নি। অনুমোদন ও অ্যাডমিনের দৃশ্যমানতা চালু হলে সেবাগুলো এখানে দেখাবে।", 10f, soft).apply {
+            setPadding(0, dp(6), 0, 0)
+        })
+        page.addView(financeNotice)
 
         val safety = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -888,7 +883,7 @@ class MainActivity : Activity() {
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         apiStatus = text("ডেমো মোড সক্রিয় • বাস্তব পেমেন্ট বন্ধ", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
-        page.addView(text("BilPay Android v1.3.0", 9f, soft).apply {
+        page.addView(text("BilPay Android v1.3.1", 9f, soft).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, 0)
         })
