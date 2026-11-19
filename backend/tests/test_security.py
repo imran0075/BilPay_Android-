@@ -100,46 +100,27 @@ def test_demo_payment_simulation_requires_authentication():
     assert response.status_code == 401
 
 
-def test_demo_payment_does_not_change_wallet_and_is_user_scoped():
+def test_wallet_is_unavailable_until_a_real_ledger_is_configured():
     with test_client() as client:
-        first_token, _ = register(client)
-        second_token, _ = register(client)
-        first_headers = {"Authorization": f"Bearer {first_token}"}
-        second_headers = {"Authorization": f"Bearer {second_token}"}
+        token, _ = register(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        wallet = client.get("/api/v1/wallet", headers=headers)
+        assert wallet.status_code == 503
+        assert wallet.json()["detail"]["code"] == "LIVE_LEDGER_NOT_CONFIGURED"
+        history = client.get("/api/v1/transactions", headers=headers)
+        assert history.status_code == 200
+        assert history.json()["items"] == []
 
-        before = client.get("/api/v1/wallet", headers=first_headers)
-        assert before.status_code == 200
 
-        simulated = client.post(
+def test_simulated_payment_endpoint_is_removed():
+    with test_client() as client:
+        token, _ = register(client)
+        response = client.post(
             "/api/v1/test-payments/simulate",
-            headers=first_headers,
-            json={
-                "service_id": "electricity",
-                "provider_id": "bkash",
-                "amount": "100.00",
-                "outcome": "success",
-                "currency": "BDT",
-            },
+            headers={"Authorization": f"Bearer {token}"},
+            json={"service_id":"electricity","provider_id":"bkash","amount":"100.00","outcome":"success","currency":"BDT"},
         )
-        assert simulated.status_code == 200
-        assert simulated.json()["mode"] == "TEST_ONLY"
-        assert simulated.json()["real_money_used"] is False
-        assert simulated.json()["wallet_balance_changed"] is False
-
-        after = client.get("/api/v1/wallet", headers=first_headers)
-        assert after.status_code == 200
-        assert after.json()["balance"] == before.json()["balance"]
-
-        first_history = client.get("/api/v1/transactions", headers=first_headers)
-        second_history = client.get("/api/v1/transactions", headers=second_headers)
-        assert first_history.status_code == 200
-        assert second_history.status_code == 200
-        assert any(
-            item["transaction_id"] == simulated.json()["transaction_id"]
-            for item in first_history.json()["items"]
-        )
-        assert second_history.json()["items"] == []
-
+    assert response.status_code == 404
 
 def test_invalid_token_cannot_access_profile_wallet_or_history():
     headers = {"Authorization": "Bearer not-a-valid-jwt"}
