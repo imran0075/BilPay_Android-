@@ -152,3 +152,38 @@ def test_admin_service_visibility_put_is_allowed_by_cors_preflight():
 
     assert response.status_code == 200
     assert "PUT" in response.headers["access-control-allow-methods"]
+
+def test_profile_can_be_updated_with_authenticated_session():
+    with test_client() as client:
+        token, _ = register(client)
+        response = client.put(
+            "/api/v1/auth/profile",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"full_name": "Updated Test User"},
+        )
+        assert response.status_code == 200
+        assert response.json()["full_name"] == "Updated Test User"
+
+
+def test_password_change_requires_correct_current_password():
+    with test_client() as client:
+        token, _ = register(client)
+        headers = {"Authorization": f"Bearer {token}"}
+        wrong = client.post(
+            "/api/v1/auth/change-password",
+            headers=headers,
+            json={"current_password": "wrong-password", "new_password": "new-secure-password-456"},
+        )
+        assert wrong.status_code == 400
+        changed = client.post(
+            "/api/v1/auth/change-password",
+            headers=headers,
+            json={"current_password": "test-password-123", "new_password": "new-secure-password-456"},
+        )
+        assert changed.status_code == 200
+        login = client.post(
+            "/api/v1/auth/login",
+            json={"phone": headers["Authorization"] and client.get("/api/v1/auth/me", headers=headers).json()["phone"],
+                  "password": "new-secure-password-456"},
+        )
+        assert login.status_code == 200
