@@ -169,6 +169,11 @@ class AuthOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+class ProfileUpdateRequest(BaseModel):
+    full_name: str = Field(min_length=1, max_length=80)
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=10, max_length=128)
 class PaymentIntentRequest(BaseModel):
     service_id: str = Field(min_length=2, max_length=40)
     provider_id: str = Field(min_length=2, max_length=30)
@@ -215,6 +220,26 @@ def login(payload:LoginRequest, db:Session=Depends(get_db)):
 @app.get("/api/v1/auth/me",response_model=UserOut)
 def me(user:User=Depends(current_user)):
     return user
+
+@app.put("/api/v1/auth/profile", response_model=UserOut)
+def update_profile(payload: ProfileUpdateRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    name = payload.full_name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="নাম খালি রাখা যাবে না।")
+    user.full_name = name
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.post("/api/v1/auth/change-password")
+def change_password(payload: PasswordChangeRequest, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    if not password_hasher.verify(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="বর্তমান পাসওয়ার্ড সঠিক নয়।")
+    if password_hasher.verify(payload.new_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="নতুন পাসওয়ার্ডটি বর্তমান পাসওয়ার্ডের থেকে আলাদা হতে হবে।")
+    user.password_hash = password_hasher.hash(payload.new_password)
+    db.commit()
+    return {"ok": True, "message": "পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।"}
 
 @app.get("/api/v1/wallet")
 def get_wallet(user:User=Depends(current_user),db:Session=Depends(get_db)):
