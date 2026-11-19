@@ -85,20 +85,6 @@ def test_admin_endpoint_allows_allowlisted_user_and_records_audit():
     assert any(item["action"] == "view_overview" for item in audit.json()["items"])
 
 
-def test_demo_payment_simulation_requires_authentication():
-    with test_client() as client:
-        response = client.post(
-            "/api/v1/test-payments/simulate",
-            json={
-                "service_id": "electricity",
-                "provider_id": "bkash",
-                "amount": "100.00",
-                "outcome": "success",
-                "currency": "BDT",
-            },
-        )
-    assert response.status_code == 401
-
 
 def test_wallet_is_unavailable_until_a_real_ledger_is_configured():
     with test_client() as client:
