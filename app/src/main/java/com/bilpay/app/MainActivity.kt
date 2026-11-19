@@ -677,7 +677,6 @@ class MainActivity : Activity() {
         root.addView(nav)
         setContentView(root)
         checkApiConnection()
-        fetchServerWallet()
         checkForUpdate()
     }
 
