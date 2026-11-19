@@ -585,7 +585,6 @@ class MainActivity : Activity() {
         accountCard.addView(text("প্রোফাইল থেকে নিবন্ধন বা লগইন করুন। বাস্তব ওয়ালেট চালুর আগে কোনো কাল্পনিক ব্যালেন্স দেখানো হবে না।", 11f, muted))
         page.addView(accountCard, LinearLayout.LayoutParams(-1, -2))
         val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
-        page.addView(balance, LinearLayout.LayoutParams(-1, -2))
         page.addView(quickTitle)
 
         val quick = LinearLayout(this).apply {
