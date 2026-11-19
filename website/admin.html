@@ -84,8 +84,8 @@
     $("stats").innerHTML = [
       ["মোট ব্যবহারকারী",data.total_users],
       ["মোট লেনদেন",data.total_transactions],
-      ["সফল টেস্ট",data.successful_test_records],
-      ["ব্যর্থ টেস্ট",data.failed_test_records]
+      ["সফল বাস্তব লেনদেন",data.successful_transactions],
+      ["ব্যর্থ বাস্তব লেনদেন",data.failed_transactions]
     ].map(([label,value])=>'<div class="stat"><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong></div>').join("");
   }
   async function loadTab(tab) {
