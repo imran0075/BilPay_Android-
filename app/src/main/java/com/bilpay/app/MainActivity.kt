@@ -384,11 +384,149 @@ class MainActivity : Activity() {
                     android.app.AlertDialog.Builder(this)
                         .setTitle(title)
                         .setMessage(message)
+                        .setNeutralButton("নিরাপত্তা ও প্রোফাইল") { _, _ -> showAccountSecurity(token, name, phone) }
                         .setNegativeButton("বন্ধ", null)
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
                             showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BilPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
                         }.show()
+                }
+            }
+        }.start()
+    }
+
+    private fun showAccountSecurity(token: String, currentName: String, phone: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("প্রোফাইল ও নিরাপত্তা")
+            .setItems(arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন")) { _, which ->
+                if (which == 0) showEditProfile(token, currentName)
+                else showChangePassword(token)
+            }
+            .setNegativeButton("বন্ধ", null)
+            .show()
+    }
+
+    private fun showEditProfile(token: String, currentName: String) {
+        val field = EditText(this).apply {
+            hint = "আপনার পূর্ণ নাম"
+            setText(currentName.takeUnless { it == "নাম দেওয়া হয়নি" } ?: "")
+            setPadding(dp(18), dp(12), dp(18), dp(12))
+        }
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(field)
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("নাম পরিবর্তন")
+            .setView(wrap)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("সংরক্ষণ", null)
+            .create().also { dialog ->
+                dialog.setOnShowListener {
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val name = field.text.toString().trim()
+                        if (name.isBlank() || name.length > 80) {
+                            showInfo("তথ্য যাচাই", "১ থেকে ৮০ অক্ষরের মধ্যে আপনার নাম লিখুন।")
+                            return@setOnClickListener
+                        }
+                        sendAccountRequest(token, "/api/v1/auth/profile", "PUT",
+                            JSONObject().put("full_name", name), "প্রোফাইলের নাম পরিবর্তন হয়েছে।")
+                        dialog.dismiss()
+                    }
+                }
+                dialog.show()
+            }
+    }
+
+    private fun showChangePassword(token: String) {
+        val current = EditText(this).apply {
+            hint = "বর্তমান পাসওয়ার্ড"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            transformationMethod = PasswordTransformationMethod.getInstance()
+        }
+        val next = EditText(this).apply {
+            hint = "নতুন পাসওয়ার্ড (কমপক্ষে ১০ অক্ষর)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            transformationMethod = PasswordTransformationMethod.getInstance()
+        }
+        val confirm = EditText(this).apply {
+            hint = "নতুন পাসওয়ার্ড আবার লিখুন"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+            transformationMethod = PasswordTransformationMethod.getInstance()
+        }
+        val wrap = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(current); addView(next); addView(confirm)
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("পাসওয়ার্ড পরিবর্তন")
+            .setMessage("নতুন পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের হতে হবে।")
+            .setView(wrap)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("পরিবর্তন", null)
+            .create().also { dialog ->
+                dialog.setOnShowListener {
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val oldPass = current.text.toString()
+                        val newPass = next.text.toString()
+                        if (oldPass.isBlank() || newPass.length < 10 || newPass != confirm.text.toString()) {
+                            showInfo("তথ্য যাচাই", "বর্তমান পাসওয়ার্ড দিন, নতুন পাসওয়ার্ড কমপক্ষে ১০ অক্ষরের রাখুন এবং দুইবার একইভাবে লিখুন।")
+                            return@setOnClickListener
+                        }
+                        sendAccountRequest(token, "/api/v1/auth/change-password", "POST",
+                            JSONObject().put("current_password", oldPass).put("new_password", newPass),
+                            "পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।", clearSession = true)
+                        dialog.dismiss()
+                    }
+                }
+                dialog.show()
+            }
+    }
+
+    private fun sendAccountRequest(token: String, path: String, method: String, payload: JSONObject, successMessage: String, clearSession: Boolean = false) {
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("তথ্য নিরাপদে সংরক্ষণ হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            var message = "সার্ভারে সংযোগ করা যায়নি।"
+            var success = false
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+                    requestMethod = method
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code in 200..299) {
+                    success = true
+                    message = successMessage
+                } else {
+                    val detail = JSONObject(body).opt("detail")
+                    message = if (detail is String) detail else "অনুরোধ সম্পন্ন হয়নি (HTTP $code)।"
+                }
+            } catch (e: Exception) {
+                message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                if (success && clearSession) {
+                    securePrefs().edit().clear().apply()
+                    showInfo("সফল", message)
+                    showAuthForm(false)
+                } else {
+                    showInfo(if (success) "সফল" else "সমস্যা", message)
                 }
             }
         }.start()
