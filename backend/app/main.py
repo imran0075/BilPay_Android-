@@ -2,7 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException
