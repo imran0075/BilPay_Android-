@@ -2,8 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from typing import Literal, Optional
-from uuid import uuid4
+from typing import Optional
 
 import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -39,9 +38,9 @@ class Wallet(Base):
     __tablename__ = "wallets"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
-    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("50000.00"))
+    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
     currency: Mapped[str] = mapped_column(String(3), default="BDT")
-    mode: Mapped[str] = mapped_column(String(20), default="DEMO_ONLY")
+    mode: Mapped[str] = mapped_column(String(20), default="DISABLED")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -125,6 +124,11 @@ def record_admin_action(db: Session, admin: User, action: str, target: str = "",
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
+        # Retire all legacy demo balances. They were never real customer funds.
+        db.query(Wallet).filter(Wallet.mode != "LIVE").update(
+            {Wallet.balance: Decimal("0.00"), Wallet.mode: "DISABLED"},
+            synchronize_session=False,
+        )
         for item in SERVICES:
             if db.get(ServiceConfig, item["id"]) is None:
                 db.add(ServiceConfig(service_id=item["id"], visible=True))
@@ -134,7 +138,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="BilPay API", description="Shared API foundation for BilPay Android, web and admin clients.", version="0.3.0", lifespan=lifespan)
 origins = os.getenv("BILPAY_ALLOWED_ORIGINS", "https://bilpay-official.onrender.com,https://bilpay-official-site.onrender.com,https://bilpay.com.bd,https://www.bilpay.com.bd")
 app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in origins.split(",") if x.strip()], allow_credentials=False, allow_methods=["GET","POST","PUT"], allow_headers=["Content-Type","Authorization"])
-TEST_MODE_ENABLED = os.getenv("BILPAY_TEST_MODE", "false").strip().lower() in {"1","true","yes","on"}
 
 SERVICES = [
  {"id":"electricity","name":"বিদ্যুৎ বিল","category":"bill","enabled":False},
@@ -166,12 +169,6 @@ class AuthOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
-class TestPaymentRequest(BaseModel):
-    service_id: str = Field(min_length=2, max_length=40)
-    provider_id: str = Field(min_length=2, max_length=30)
-    amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
-    outcome: Literal["success","failed"] = "success"
-    currency: Literal["BDT"] = "BDT"
 class PaymentIntentRequest(BaseModel):
     service_id: str = Field(min_length=2, max_length=40)
     provider_id: str = Field(min_length=2, max_length=30)
@@ -184,13 +181,13 @@ class ServiceVisibilityRequest(BaseModel):
 
 @app.get("/")
 def root():
-    return {"name":"BilPay API","version":app.version,"status":"ready"}
+    return {"name":"BilPay API","version":app.version,"status":"ready","account_registration_enabled":True,"wallet_enabled":False,"live_transactions_enabled":False}
 @app.get("/health")
 def health():
     return {"ok":True,"service":"bilpay-api"}
 @app.get("/api/v1/status")
 def status():
-    return {"name":"BilPay","api_version":app.version,"status":"operational","test_mode_enabled":TEST_MODE_ENABLED,"live_transactions_enabled":False,"database_enabled":True,"provider_integrations":{p["id"]:p["status"] for p in PROVIDERS},"message":"বাস্তব লেনদেন চালুর আগে অনুমোদিত পার্টনার API সংযোগ প্রয়োজন।"}
+    return {"name":"BilPay","api_version":app.version,"status":"operational","account_registration_enabled":True,"wallet_enabled":False,"live_transactions_enabled":False,"database_enabled":True,"provider_integrations":{p["id"]:p["status"] for p in PROVIDERS},"message":"অ্যাকাউন্ট সেবা চালু আছে। বাস্তব ওয়ালেট ও পেমেন্ট চালুর আগে অনুমোদিত লেজার এবং পার্টনার API সংযোগ প্রয়োজন।"}
 @app.get("/api/v1/services")
 def services(db: Session = Depends(get_db)):
     configs = {x.service_id: x.visible for x in db.scalars(select(ServiceConfig)).all()}
@@ -221,24 +218,21 @@ def me(user:User=Depends(current_user)):
 
 @app.get("/api/v1/wallet")
 def get_wallet(user:User=Depends(current_user),db:Session=Depends(get_db)):
-    wallet=db.scalar(select(Wallet).where(Wallet.user_id==user.id))
+    # No wallet is exposed unless a future approved real ledger is explicitly enabled.
+    if os.getenv("BILPAY_LIVE_LEDGER_ENABLED", "false").strip().lower() not in {"1","true","yes","on"}:
+        raise HTTPException(status_code=503, detail={
+            "code":"LIVE_LEDGER_NOT_CONFIGURED",
+            "message":"বাস্তব ওয়ালেট এখনো চালু হয়নি। কোনো ডেমো বা কাল্পনিক ব্যালেন্স দেখানো হবে না।"
+        })
+    wallet=db.scalar(select(Wallet).where(Wallet.user_id==user.id, Wallet.mode=="LIVE"))
     if wallet is None:
-        wallet=Wallet(user_id=user.id,balance=Decimal("50000.00"),currency="BDT",mode="DEMO_ONLY")
-        db.add(wallet)
-        try:
-            db.commit()
-            db.refresh(wallet)
-        except Exception:
-            db.rollback()
-            wallet=db.scalar(select(Wallet).where(Wallet.user_id==user.id))
-            if wallet is None:
-                raise HTTPException(status_code=503,detail="ডেমো ওয়ালেট তৈরি করা যায়নি।")
-    return {"wallet_id":wallet.id,"balance":str(wallet.balance),"currency":wallet.currency,"mode":wallet.mode,"real_money":False,"message":"এটি সার্ভারে সংরক্ষিত পরীক্ষামূলক ব্যালেন্স; বাস্তব অর্থ নয়।"}
+        raise HTTPException(status_code=404, detail="এই অ্যাকাউন্টের বাস্তব ওয়ালেট এখনো তৈরি হয়নি।")
+    return {"wallet_id":wallet.id,"balance":str(wallet.balance),"currency":wallet.currency,"mode":"LIVE","real_money":True}
 
 @app.get("/api/v1/transactions")
 def history(user:User=Depends(current_user),db:Session=Depends(get_db),limit:int=20):
     limit=max(1,min(limit,100))
-    rows=db.scalars(select(Transaction).where(Transaction.user_id==user.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
+    rows=db.scalars(select(Transaction).where(Transaction.user_id==user.id, Transaction.mode=="LIVE").order_by(Transaction.created_at.desc()).limit(limit)).all()
     return {"items":[{"transaction_id":r.transaction_id,"service_id":r.service_id,"provider_id":r.provider_id,"amount":str(r.amount),"currency":r.currency,"status":r.status,"mode":r.mode,"created_at":r.created_at.isoformat()} for r in rows]}
 
 @app.get("/api/v1/admin/services")
@@ -271,16 +265,17 @@ def update_service_visibility(service_id: str, payload: ServiceVisibilityRequest
 @app.get("/api/v1/admin/overview")
 def admin_overview(admin: User = Depends(admin_user), db: Session = Depends(get_db)):
     total_users = db.scalar(select(func.count()).select_from(User)) or 0
-    total_transactions = db.scalar(select(func.count()).select_from(Transaction)) or 0
-    successful_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "success")) or 0
-    failed_tests = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.status == "failed")) or 0
+    live_rows = select(Transaction).where(Transaction.mode == "LIVE")
+    total_transactions = db.scalar(select(func.count()).select_from(live_rows.subquery())) or 0
+    successful_transactions = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.mode == "LIVE", Transaction.status == "success")) or 0
+    failed_transactions = db.scalar(select(func.count()).select_from(Transaction).where(Transaction.mode == "LIVE", Transaction.status == "failed")) or 0
     record_admin_action(db, admin, "view_overview", "dashboard", "Read dashboard totals")
     return {
         "mode": "ADMIN_READ_ONLY",
         "total_users": total_users,
         "total_transactions": total_transactions,
-        "successful_test_records": successful_tests,
-        "failed_test_records": failed_tests,
+        "successful_transactions": successful_transactions,
+        "failed_transactions": failed_transactions,
         "live_transactions_enabled": False,
         "message": "এটি প্রশাসনিক পর্যবেক্ষণ; এখান থেকে বাস্তব অর্থ লেনদেন করা যায় না।"
     }
@@ -295,7 +290,7 @@ def admin_users(admin: User = Depends(admin_user), db: Session = Depends(get_db)
 @app.get("/api/v1/admin/transactions")
 def admin_transactions(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
     limit = max(1, min(limit, 100))
-    rows = db.execute(select(Transaction, User.phone).join(User, Transaction.user_id == User.id).order_by(Transaction.created_at.desc()).limit(limit)).all()
+    rows = db.execute(select(Transaction, User.phone).join(User, Transaction.user_id == User.id).where(Transaction.mode == "LIVE").order_by(Transaction.created_at.desc()).limit(limit)).all()
     record_admin_action(db, admin, "view_transactions", "transactions", f"Viewed up to {limit} transactions")
     return {"items": [{"transaction_id": t.transaction_id, "user_phone": phone, "service_id": t.service_id, "provider_id": t.provider_id, "amount": str(t.amount), "currency": t.currency, "status": t.status, "mode": t.mode, "created_at": t.created_at.isoformat()} for t, phone in rows]}
 
@@ -312,15 +307,3 @@ def initiate_payment(payload:PaymentIntentRequest,user:User=Depends(current_user
     provider=next((x for x in PROVIDERS if x["id"]==payload.provider_id),None)
     if provider is None: raise HTTPException(status_code=404,detail="অজানা পেমেন্ট প্রোভাইডার")
     raise HTTPException(status_code=503,detail={"code":"PROVIDER_API_NOT_CONFIGURED","message":"এই প্রোভাইডারের অনুমোদিত API এখনো সংযুক্ত হয়নি। কোনো টাকা কাটা হয়নি।","provider":provider["id"]})
-
-@app.post("/api/v1/test-payments/simulate")
-def simulate(payload:TestPaymentRequest,user:User=Depends(current_user),db:Session=Depends(get_db)):
-    if not TEST_MODE_ENABLED: raise HTTPException(status_code=404,detail="টেস্ট পেমেন্ট মোড বর্তমানে বন্ধ আছে।")
-    service=next((x for x in SERVICES if x["id"]==payload.service_id),None)
-    provider=next((x for x in PROVIDERS if x["id"]==payload.provider_id),None)
-    if service is None: raise HTTPException(status_code=404,detail="অজানা সেবা")
-    if provider is None: raise HTTPException(status_code=404,detail="অজানা পেমেন্ট প্রোভাইডার")
-    txn_id=f"BILPAY-TEST-{uuid4().hex[:12].upper()}"
-    row=Transaction(transaction_id=txn_id,user_id=user.id,service_id=service["id"],provider_id=provider["id"],amount=payload.amount,currency=payload.currency,status=payload.outcome,mode="TEST_ONLY")
-    db.add(row); db.commit()
-    return {"mode":"TEST_ONLY","transaction_id":txn_id,"status":row.status,"service_id":service["id"],"provider_id":provider["id"],"amount":str(payload.amount),"currency":payload.currency,"real_money_used":False,"wallet_balance_changed":False,"message":"এটি পরীক্ষামূলক রেকর্ড; কোনো বাস্তব টাকা লেনদেন হয়নি।"}
