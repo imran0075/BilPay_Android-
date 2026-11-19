@@ -346,6 +346,8 @@ class MainActivity : Activity() {
         Thread {
             var title = "BilPay অ্যাকাউন্ট"
             var message = "প্রোফাইল তথ্য পাওয়া যায়নি।"
+            var profileName = "নাম দেওয়া হয়নি"
+            var profilePhone = ""
             var sessionExpired = false
             try {
                 val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/auth/me").openConnection() as HttpURLConnection).apply {
@@ -361,9 +363,9 @@ class MainActivity : Activity() {
                 connection.disconnect()
                 if (code in 200..299) {
                     val user = JSONObject(body)
-                    val name = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
-                    val phone = user.optString("phone")
-                    message = "নাম: $name\\nমোবাইল: $phone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
+                    profileName = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
+                    profilePhone = user.optString("phone")
+                    message = "নাম: $profileName\\nমোবাইল: $profilePhone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
                 } else if (code == 401) {
                     sessionExpired = true
                     title = "আবার লগইন করুন"
@@ -384,7 +386,7 @@ class MainActivity : Activity() {
                     android.app.AlertDialog.Builder(this)
                         .setTitle(title)
                         .setMessage(message)
-                        .setNeutralButton("নিরাপত্তা ও প্রোফাইল") { _, _ -> showAccountSecurity(token, name, phone) }
+                        .setNeutralButton("নিরাপত্তা ও প্রোফাইল") { _, _ -> showAccountSecurity(token, profileName, profilePhone) }
                         .setNegativeButton("বন্ধ", null)
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
