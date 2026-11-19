@@ -27,6 +27,8 @@ def test_public_status_never_advertises_live_transactions():
     payload = response.json()
     assert payload["live_transactions_enabled"] is False
     assert payload["database_enabled"] is True
+    assert payload["account_registration_enabled"] is True
+    assert payload["wallet_enabled"] is False
 
 
 def test_service_catalogue_and_providers_remain_disabled_until_integrated():
@@ -46,31 +48,19 @@ def test_service_catalogue_and_providers_remain_disabled_until_integrated():
     )
 
 
-def test_demo_simulation_is_rejected_when_test_mode_is_disabled(monkeypatch):
-    monkeypatch.setattr(api, "TEST_MODE_ENABLED", False)
-
+def test_demo_simulation_endpoint_is_removed():
     with TestClient(api.app) as client:
         token = register(client)
         response = client.post(
             "/api/v1/test-payments/simulate",
             headers={"Authorization": f"Bearer {token}"},
-            json={
-                "service_id": "electricity",
-                "provider_id": "bkash",
-                "amount": "100.00",
-                "outcome": "success",
-                "currency": "BDT",
-            },
+            json={"service_id":"electricity","provider_id":"bkash","amount":"100.00","outcome":"success","currency":"BDT"},
         )
-        history = client.get(
-            "/api/v1/transactions",
-            headers={"Authorization": f"Bearer {token}"},
-        )
+        history = client.get("/api/v1/transactions", headers={"Authorization": f"Bearer {token}"})
 
     assert response.status_code == 404
     assert history.status_code == 200
     assert history.json()["items"] == []
-
 
 
 def test_admin_can_only_change_catalogue_visibility(monkeypatch):
