@@ -28,7 +28,6 @@ import java.net.URL
 
 class MainActivity : Activity() {
     private lateinit var apiStatus: TextView
-    private var walletBalanceView: TextView? = null
     private val green = Color.rgb(0, 112, 78)
     private val dark = Color.rgb(20, 39, 34)
     private val muted = Color.rgb(104, 122, 115)
@@ -38,7 +37,6 @@ class MainActivity : Activity() {
         GradientDrawable().apply { setColor(color); cornerRadius = dp(radius).toFloat() }
     private fun text(value: String, size: Float, color: Int, bold: Boolean = false): TextView =
         TextView(this).apply { text = value; textSize = size; setTextColor(color); if (bold) setTypeface(null, Typeface.BOLD) }
-    private val demoTransactions = mutableListOf<String>()
 
     private val updateState by lazy { getSharedPreferences("bilpay_update_state", Context.MODE_PRIVATE) }
     private var downloadReceiver: BroadcastReceiver? = null
@@ -234,49 +232,22 @@ class MainActivity : Activity() {
 
     private fun action(label: String) {
         val lower = label.lowercase()
-        if (lower == "সেবা" || lower == "আরও সেবা") {
-            showServices()
-            return
-        }
-        if (lower == "প্রোফাইল") {
-            showProfile()
-            return
-        }
-        if (lower == "সাপোর্ট" || lower == "সহায়তা") {
-            showSupport()
-            return
-        }
-        if (lower == "হোম") {
-            showInfo("BilPay Home", "আপনি BilPay-এর হোম স্ক্রিনে আছেন। সব সুবিধা আপাতত ডেমো মোডে ব্যবহার করতে পারবেন।")
-            return
-        }
-        if (lower.contains("অ্যাড মানি") || lower.contains("সেন্ড মানি") ||
-            lower.contains("ক্যাশ") || lower.contains("ট্রান্সফার") || lower.contains("qr") ||
+        when {
+            lower == "সেবা" || lower == "আরও সেবা" -> showServices()
+            lower == "প্রোফাইল" -> showProfile()
+            lower == "সাপোর্ট" || lower == "সহায়তা" -> showSupport()
+            lower == "হোম" -> showInfo("BilPay", "আপনি BilPay-এর হোম স্ক্রিনে আছেন।")
+            lower == "হিসাব" || lower == "লেনদেন" -> showHistory()
             lower.contains("বিদ্যুৎ") || lower.contains("পানি") || lower.contains("গ্যাস") ||
-            lower.contains("ইন্টারনেট") || lower.contains("রিচার্জ") || lower.contains("bKash".lowercase()) ||
-            lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ||
-            lower.contains("হিসাব") || lower.contains("লেনদেন") || lower.contains("প্রোফাইল") ||
-            lower.contains("সেবা") || lower.contains("নোটিফিকেশন")) {
-            openDemoFlow(label)
-            return
+                lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
+                lower.contains("শিক্ষা") || lower.contains("হাসপাতাল") || lower.contains("সরকারি") ||
+                lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
+            lower.contains("অ্যাড মানি") || lower.contains("সেন্ড মানি") || lower.contains("ক্যাশ") ||
+                lower.contains("ট্রান্সফার") || lower.contains("qr") || lower.contains("bkash") ||
+                lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
+                showInfo("সেবা চালুর অপেক্ষায়", "এই সেবার অনুমোদিত আর্থিক অংশীদার API ও চুক্তি এখনো যুক্ত হয়নি। তাই কোনো টাকা গ্রহণ, পাঠানো বা ব্যালেন্স দেখানো হচ্ছে না। API যুক্ত হলে সরাসরি বাস্তব সেবা চালু করা হবে।")
+            else -> showInfo("সেবা প্রস্তুত হচ্ছে", "এই সুবিধাটি বাস্তবভাবে চালুর জন্য প্রয়োজনীয় সার্ভার বা সেবাদাতা সংযোগ এখনো সম্পন্ন হয়নি।")
         }
-        val message = when {
-            label.contains("হিসাব") || label.contains("লেনদেন") ->
-                "লেনদেনের ইতিহাস চালুর জন্য নিরাপদ অ্যাকাউন্ট ও সার্ভার-সাইড লেজার তৈরি করা হচ্ছে।"
-            label.contains("বিদ্যুৎ") || label.contains("পানি") || label.contains("গ্যাস") ||
-            label.contains("ইন্টারনেট") || label.contains("টিভি") || label.contains("টেলিফোন") ||
-            label.contains("শিক্ষা") || label.contains("হাসপাতাল") || label.contains("সরকারি") ||
-            label.contains("অন্যান্য") || label.contains("রিচার্জ") ->
-                "BilPay অ্যাপের সার্ভার API এবং এই বিলারের পেমেন্ট API আলাদা। এই বিলারের অফিসিয়াল API/চুক্তি এখনো যুক্ত হয়নি, তাই আপাতত বিল জমা বা টাকা কাটা যাবে না।"
-            label.contains("bKash") || label.contains("Nagad") || label.contains("Rocket") ||
-            label.contains("Upay") || label.contains("মানি") || label.contains("ট্রান্সফার") ||
-            label.contains("QR") || label.contains("অ্যাড") ->
-                "BilPay সার্ভার চালু থাকলেও bKash/Nagad/Rocket/Upay-এর লেনদেন API আলাদাভাবে অনুমোদিত merchant চুক্তি ও credentials দিয়ে যুক্ত করতে হয়। সেগুলো এখনো যুক্ত হয়নি; তাই টাকা পাঠানো বা গ্রহণ বন্ধ আছে।"
-            label.contains("প্রোফাইল") ->
-                "নিরাপদ লগইন ও পরিচয় যাচাই (KYC) মডিউল পরবর্তী ধাপে যুক্ত করা হবে।"
-            else -> "এই সুবিধাটি এখনো চালু করা হয়নি। সার্ভার সংযোগ আর বাস্তব সেবাদাতার API সংযোগ এক বিষয় নয়। প্রয়োজনীয় API ও অনুমোদন যুক্ত হলে এটি চালু হবে।"
-        }
-        showInfo("BilPay • $label", message)
     }
 
     private fun showInfo(title: String, message: String) {
@@ -392,7 +363,7 @@ class MainActivity : Activity() {
                     val user = JSONObject(body)
                     val name = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
                     val phone = user.optString("phone")
-                    message = "নাম: $name\nমোবাইল: $phone\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\n\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\n\nওয়ালেট: সার্ভার-সংযুক্ত DEMO WALLET\nব্যালেন্স দেখতে হোম স্ক্রিনের Wallet Balance অংশ দেখুন।\n\nগুরুত্বপূর্ণ: এটি পরীক্ষামূলক ব্যালেন্স; বাস্তব টাকা নয় এবং বাস্তব লেনদেন চালু নেই।"
+                    message = "নাম: $name\\nমোবাইল: $phone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
                 } else if (code == 401) {
                     sessionExpired = true
                     title = "আবার লগইন করুন"
@@ -504,7 +475,6 @@ class MainActivity : Activity() {
                         runOnUiThread {
                             progress.dismiss()
                             showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message)
-                            if (ok) fetchServerWallet()
                         }
                     }.start()
                 }
@@ -522,209 +492,8 @@ class MainActivity : Activity() {
         showInfo("সেবা এখনো চালু নয়", "$service-এর অনুমোদিত বিলার API ও পেমেন্ট যাচাই সংযোগ সম্পন্ন হলে এই সেবা চালু হবে। এখন কোনো বিল জমা বা টাকা কাটা হবে না।")
     }
 
-    private fun saveApiTestHistory(serviceLabel: String, providerId: String, amount: String, status: String, transactionId: String) {
-        val prefs = getSharedPreferences("bilpay_demo", MODE_PRIVATE)
-        val old = try { org.json.JSONArray(prefs.getString("api_test_history", "[]") ?: "[]") } catch (_: Exception) { org.json.JSONArray() }
-        val record = JSONObject().apply {
-            put("service", serviceLabel)
-            put("provider", providerId)
-            put("amount", amount)
-            put("status", status)
-            put("transaction_id", transactionId)
-            put("created_at", java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.ENGLISH).format(java.util.Date()))
-        }
-        old.put(record)
-        val trimmed = org.json.JSONArray()
-        for (i in maxOf(0, old.length() - 100) until old.length()) trimmed.put(old.getJSONObject(i))
-        prefs.edit().putString("api_test_history", trimmed.toString()).apply()
-    }
-
     private fun showHistory() {
-        val token = securePrefs().getString("access_token", null)
-        if (token.isNullOrBlank()) {
-            showInfo("লগইন প্রয়োজন", "সার্ভারে সংরক্ষিত লেনদেন দেখতে আগে আপনার BilPay অ্যাকাউন্টে লগইন করুন।")
-            showAuthForm(false)
-            return
-        }
-        val progress = android.app.ProgressDialog(this).apply { setMessage("লেনদেনের ইতিহাস আনা হচ্ছে…"); setCancelable(false); show() }
-        Thread {
-            var message = "লেনদেনের ইতিহাস পাওয়া যায়নি।"
-            var title = "লেনদেনের ইতিহাস"
-            try {
-                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/transactions?limit=50").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"; connectTimeout = 15000; readTimeout = 15000
-                    setRequestProperty("Authorization", "Bearer $token")
-                    setRequestProperty("Accept", "application/json")
-                }
-                val code = connection.responseCode
-                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                connection.disconnect()
-                if (code in 200..299) {
-                    val items = JSONObject(body).optJSONArray("items") ?: org.json.JSONArray()
-                    val lines = mutableListOf<String>()
-                    for (i in 0 until items.length()) {
-                        val item = items.optJSONObject(i) ?: continue
-                        val status = if (item.optString("status") == "success") "সফল" else "ব্যর্থ"
-                        lines.add("$status • ${item.optString("service_id")}\n৳${item.optString("amount")} • ${item.optString("provider_id").uppercase()}\nID: ${item.optString("transaction_id")}\n${item.optString("created_at")}")
-                    }
-                    message = if (lines.isEmpty()) "এখনো কোনো সার্ভার-সংরক্ষিত লেনদেন নেই।" else lines.joinToString("\n\n")
-                    message += "\n\nএগুলো আপনার অ্যাকাউন্টের সার্ভার-সংরক্ষিত পরীক্ষামূলক রেকর্ড। বাস্তব টাকা লেনদেন হয়নি।"
-                } else {
-                    title = "আবার লগইন করুন"
-                    message = "আপনার লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
-                    securePrefs().edit().clear().apply()
-                }
-            } catch (e: Exception) { message = "সার্ভারের সঙ্গে যোগাযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
-            runOnUiThread { progress.dismiss(); showInfo(title, message) }
-        }.start()
-    }
-
-    private fun showApiTestForm(serviceLabel: String, serviceId: String) {
-        val form = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(8), dp(20), 0)
-        }
-        val amount = EditText(this).apply {
-            hint = "টাকার পরিমাণ (যেমন 100.00)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-        val provider = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("bKash", "Nagad", "Rocket", "Upay"))
-        }
-        val outcome = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item, listOf("সফল (Success)", "ব্যর্থ (Failed)"))
-        }
-        form.addView(amount)
-        form.addView(text("টেস্ট পেমেন্ট মাধ্যম", 12f, dark, true))
-        form.addView(provider)
-        form.addView(text("পরীক্ষার ফলাফল", 12f, dark, true).apply { setPadding(0, dp(12), 0, 0) })
-        form.addView(outcome)
-        android.app.AlertDialog.Builder(this)
-            .setTitle("BilPay API • " + serviceLabel)
-            .setMessage("এটি API-তে পাঠানো পরীক্ষামূলক অনুরোধ। বাস্তব টাকা কাটা বা ওয়ালেট ব্যালেন্স পরিবর্তন হবে না।")
-            .setView(form)
-            .setNegativeButton("বাতিল", null)
-            .setPositiveButton("API দিয়ে পরীক্ষা করুন") { _, _ ->
-                val value = amount.text.toString().trim()
-                val numeric = value.toBigDecimalOrNull()
-                if (numeric == null || numeric <= java.math.BigDecimal.ZERO) {
-                    showInfo("সঠিক পরিমাণ দিন", "১.০০ বা তার বেশি টাকার পরিমাণ লিখুন।")
-                } else {
-                    val providerId = listOf("bkash", "nagad", "rocket", "upay")[provider.selectedItemPosition]
-                    val outcomeId = if (outcome.selectedItemPosition == 0) "success" else "failed"
-                    simulateApiPayment(serviceLabel, serviceId, providerId, value, outcomeId)
-                }
-            }
-            .show()
-    }
-
-    private fun simulateApiPayment(serviceLabel: String, serviceId: String, providerId: String, amount: String, outcome: String) {
-        val progress = android.app.ProgressDialog(this).apply {
-            setMessage("BilPay API-তে সংযোগ করা হচ্ছে…")
-            setCancelable(false)
-            show()
-        }
-        Thread {
-            var resultTitle = "API অনুরোধ সম্পন্ন হয়নি"
-            var resultMessage = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"
-            try {
-                val url = URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/test-payments/simulate")
-                val connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 15000
-                    readTimeout = 15000
-                    doOutput = true
-                    setRequestProperty("Content-Type", "application/json")
-                    setRequestProperty("Accept", "application/json")
-                    setRequestProperty("Authorization", "Bearer " + (securePrefs().getString("access_token", "") ?: ""))
-                }
-                val payload = JSONObject().apply {
-                    put("service_id", serviceId)
-                    put("provider_id", providerId)
-                    put("amount", amount)
-                    put("outcome", outcome)
-                    put("currency", "BDT")
-                }.toString()
-                connection.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
-                val code = connection.responseCode
-                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-                connection.disconnect()
-                val json = JSONObject(body)
-                if (code in 200..299 && json.optString("mode") == "TEST_ONLY") {
-                    val status = json.optString("status", "unknown")
-                    val transactionId = json.optString("transaction_id", "N/A")
-                    saveApiTestHistory(
-                        serviceLabel,
-                        json.optString("provider_id", providerId),
-                        json.optString("amount", amount),
-                        status,
-                        transactionId
-                    )
-                    resultTitle = if (status == "success") "টেস্ট পেমেন্ট সফল" else "টেস্ট পেমেন্ট ব্যর্থ"
-                    resultMessage = "সেবা: " + serviceLabel +
-                        "\nমাধ্যম: " + json.optString("provider_id", providerId) +
-                        "\nপরিমাণ: ৳" + json.optString("amount", amount) +
-                        "\nTransaction ID: " + transactionId +
-                        "\nফলাফল: " + status +
-                        "\n\nবাস্তব টাকা লেনদেন হয়নি। ওয়ালেট ব্যালেন্স পরিবর্তন হয়নি।"
-                } else {
-                    resultTitle = "API অনুরোধ গ্রহণ হয়নি (HTTP " + code + ")"
-                    resultMessage = json.optString("detail", json.optString("message", "অনুগ্রহ করে পরে আবার চেষ্টা করুন।"))
-                }
-            } catch (e: Exception) {
-                resultMessage = "API-তে যোগাযোগের সময় সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা সমস্যা")
-            }
-            runOnUiThread {
-                progress.dismiss()
-                showInfo(resultTitle, resultMessage)
-            }
-        }.start()
-    }
-
-    private fun openDemoFlow(label: String) {
-        val serviceId = when {
-            label.contains("বিদ্যুৎ") -> "electricity"
-            label.contains("পানি") -> "water"
-            label.contains("গ্যাস") -> "gas"
-            label.contains("ইন্টারনেট") -> "internet"
-            label.contains("রিচার্জ") -> "mobile_recharge"
-            label.contains("শিক্ষা") -> "education"
-            label.contains("সরকারি") -> "government"
-            else -> null
-        }
-        if (serviceId != null) {
-            showApiTestForm(label, serviceId)
-            return
-        }
-        if (label.contains("টিভি") || label.contains("টেলিফোন") || label.contains("হাসপাতাল") || label.contains("অন্যান্য বিল")) {
-            showInfo("সেবা প্রস্তুত হচ্ছে", "এই সেবার API এখনো BilPay সার্ভারে যুক্ত হয়নি। বর্তমানে বিদ্যুৎ, পানি, গ্যাস, ইন্টারনেট, মোবাইল রিচার্জ, শিক্ষা ও সরকারি ফি-এর পরীক্ষামূলক API অনুরোধ করা যাবে।")
-            return
-        }
-        if (label.contains("অ্যাড") || label.contains("সেন্ড") || label.contains("ক্যাশ") ||
-            label.contains("ট্রান্সফার") || label.contains("QR", true) ||
-            label.contains("bKash", true) || label.contains("Nagad", true) ||
-            label.contains("Rocket", true) || label.contains("Upay", true)) {
-            showInfo("সেবা এখনো চালু হয়নি", "এই আর্থিক সেবার অনুমোদিত পার্টনার API এখনো সংযুক্ত হয়নি। নিরাপত্তার জন্য এখানে কোনো স্থানীয় ডেমো ব্যালেন্স যোগ, বিয়োগ বা পরিবর্তন করা হবে না। বাস্তব লেনদেনও বন্ধ আছে।")
-            return
-        }
-        if (label.contains("হিসাব") || label.contains("লেনদেন")) {
-            showHistory()
-            return
-        }
-        if (label.contains("প্রোফাইল")) {
-            showProfile()
-            return
-        }
-        if (label.contains("নোটিফিকেশন")) {
-            showInfo("নোটিফিকেশন", "নতুন কোনো নোটিফিকেশন নেই।")
-            return
-        }
-        showInfo(
-            "সেবা প্রস্তুত হচ্ছে",
-            "এই সেবার অনুমোদিত API এখনো সংযুক্ত হয়নি। নিরাপত্তার জন্য কোনো স্থানীয় ভুয়া ব্যালেন্স বা লেনদেনের রেকর্ড তৈরি করা হবে না। প্রয়োজনীয় পার্টনার API ও অনুমোদন যুক্ত হলে সেবাটি চালু হবে।"
-        )
+        showInfo("লেনদেনের ইতিহাস", "বাস্তব আর্থিক লেজার এখনো চালু করা হয়নি। পরীক্ষামূলক বা ডেমো লেনদেন এখানে দেখানো হবে না। নিরাপদ সার্ভার-সাইড লেজার প্রস্তুত হলে আপনার প্রকৃত লেনদেনের ইতিহাস এখানে দেখা যাবে।")
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -783,7 +552,7 @@ class MainActivity : Activity() {
                 popup.menu.add("সাপোর্ট")
                 popup.setOnMenuItemClickListener { item ->
                     when (item.title.toString()) {
-                        "সেটিংস" -> showInfo("সেটিংস", "BilPay বর্তমানে ডেমো মোডে চলছে। বাস্তব লেনদেন চালুর আগে অনুমোদিত API, নিরাপদ লগইন ও প্রয়োজনীয় অনুমোদন যুক্ত করতে হবে।")
+                         "সেটিংস" -> showInfo("সেটিংস", "BilPay অ্যাকাউন্ট ও নিরাপত্তা সেটিংস। বাস্তব আর্থিক সেবা অনুমোদিত API যুক্ত হওয়ার পর চালু হবে.")
                         "প্রোফাইল" -> showProfile()
                         "সাপোর্ট" -> showSupport()
                     }
@@ -803,24 +572,18 @@ class MainActivity : Activity() {
         welcome.addView(text("আপনার সব পেমেন্ট, এক অ্যাপে", 20f, ink, true).apply { setPadding(0, dp(4), 0, 0) })
         page.addView(welcome)
 
-        // Premium wallet card
-        val balance = LinearLayout(this).apply {
+        val accountCard = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(21), dp(20), dp(21), dp(18))
-            background = GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                intArrayOf(Color.rgb(0, 143, 101), Color.rgb(0, 79, 72))).apply { cornerRadius = dp(25).toFloat() }
-            elevation = dp(6).toFloat()
+            setPadding(dp(20), dp(18), dp(20), dp(18))
+            background = shape(Color.WHITE, 22)
+            elevation = dp(3).toFloat()
         }
-        val balanceTop = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL }
-        balanceTop.addView(text("WALLET BALANCE", 10f, Color.rgb(207, 239, 225), true), LinearLayout.LayoutParams(0, -2, 1f))
-        balanceTop.addView(text("●  DEMO WALLET", 9f, Color.rgb(219, 247, 235), true))
-        balance.addView(balanceTop)
-        walletBalanceView = text("লগইন করলে সার্ভার ব্যালেন্স দেখা যাবে", 18f, Color.WHITE, true).apply {
-            setPadding(0, dp(10), 0, dp(3))
-            typeface = Typeface.create("sans-serif", Typeface.BOLD)
-        }
-        balance.addView(walletBalanceView)
-        balance.addView(text("সার্ভারে সংরক্ষিত DEMO ব্যালেন্স • বাস্তব অর্থ নয়", 10f, Color.rgb(211, 240, 228)))
+        accountCard.addView(text("BILPAY ACCOUNT", 10f, muted, true))
+        accountCard.addView(text("আপনার অ্যাকাউন্ট নিরাপদে ব্যবহার করুন", 17f, dark, true).apply {
+            setPadding(0, dp(8), 0, dp(4))
+        })
+        accountCard.addView(text("প্রোফাইল থেকে নিবন্ধন বা লগইন করুন। বাস্তব ওয়ালেট চালুর আগে কোনো কাল্পনিক ব্যালেন্স দেখানো হবে না।", 11f, muted))
+        page.addView(accountCard, LinearLayout.LayoutParams(-1, -2))
         val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
         page.addView(balance, LinearLayout.LayoutParams(-1, -2))
         page.addView(quickTitle)
@@ -829,7 +592,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
         }
-        listOf("＋" to "অ্যাড মানি", "↗" to "সেন্ড মানি", "⇄" to "ট্রান্সফার", "▦" to "QR পে").forEach { pair ->
+        listOf("●" to "প্রোফাইল", "▣" to "সেবা", "◷" to "হিসাব", "?" to "সাপোর্ট").forEach { pair ->
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
@@ -881,7 +644,7 @@ class MainActivity : Activity() {
         }
         safety.addView(safetyCopy)
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
-        apiStatus = text("ডেমো মোড সক্রিয় • বাস্তব পেমেন্ট বন্ধ", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
+        apiStatus = text("অ্যাকাউন্ট প্রস্তুত • আর্থিক সেবা API সংযুক্তির অপেক্ষায়", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
         page.addView(text("BilPay Android v1.3.1", 9f, soft).apply {
             gravity = Gravity.CENTER
@@ -916,75 +679,6 @@ class MainActivity : Activity() {
         checkApiConnection()
         fetchServerWallet()
         checkForUpdate()
-    }
-
-    private fun fetchServerWallet() {
-        val token = securePrefs().getString("access_token", null)
-        if (token.isNullOrBlank()) {
-            walletBalanceView?.text = "লগইন করলে সার্ভার ব্যালেন্স দেখা যাবে"
-            return
-        }
-        walletBalanceView?.text = "সার্ভার ব্যালেন্স লোড হচ্ছে…"
-        Thread {
-            var display = "ব্যালেন্স পাওয়া যায়নি"
-            var connection: HttpURLConnection? = null
-            try {
-                connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/wallet").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 20000
-                    readTimeout = 20000
-                    useCaches = false
-                    setRequestProperty("Authorization", "Bearer $token")
-                    setRequestProperty("Accept", "application/json")
-                    setRequestProperty("Cache-Control", "no-cache")
-                }
-                val code = connection.responseCode
-                val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
-                    ?.bufferedReader()?.use { it.readText() }.orEmpty()
-                if (code in 200..299) {
-                    val json = JSONObject(body)
-                    if (!json.has("balance") || json.isNull("balance")) {
-                        display = "সার্ভারের উত্তরে ব্যালেন্স নেই (HTTP $code)"
-                    } else {
-                        val rawBalance = json.getString("balance")
-                        val amount = rawBalance.toBigDecimalOrNull()
-                        display = if (amount != null) {
-                            "৳" + String.format(java.util.Locale.US, "%,.2f", amount)
-                        } else {
-                            "ব্যালেন্সের তথ্য সঠিক নয় (HTTP $code)"
-                        }
-                    }
-                } else {
-                    val detail = try {
-                        val errorJson = JSONObject(body)
-                        val value = errorJson.opt("detail")
-                        if (value is String) value else ""
-                    } catch (_: Exception) { "" }
-                    display = when (code) {
-                        401 -> {
-                            securePrefs().edit().remove("access_token").apply()
-                            "লগইন সেশনের মেয়াদ শেষ—আবার লগইন করুন (401)"
-                        }
-                        403 -> "ব্যালেন্স দেখার অনুমতি নেই (403)"
-                        404 -> "সার্ভারের ওয়ালেট API পাওয়া যায়নি (404)"
-                        in 500..599 -> "সার্ভারে সাময়িক সমস্যা (HTTP $code)"
-                        else -> "সার্ভার অনুরোধ গ্রহণ করেনি (HTTP $code)" +
-                            if (detail.isNotBlank()) ": " + detail.take(90) else ""
-                    }
-                }
-            } catch (e: Exception) {
-                val reason = when (e) {
-                    is java.net.SocketTimeoutException -> "সময় শেষ হয়েছে"
-                    is java.net.UnknownHostException -> "সার্ভারের ঠিকানা পাওয়া যায়নি"
-                    is java.io.IOException -> "ইন্টারনেট সংযোগে সমস্যা"
-                    else -> "তথ্য পড়তে সমস্যা হয়েছে"
-                }
-                display = "ব্যালেন্স লোড হয়নি: $reason"
-            } finally {
-                connection?.disconnect()
-            }
-            runOnUiThread { walletBalanceView?.text = display }
-        }.start()
     }
 
     private fun checkApiConnection() {
