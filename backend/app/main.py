@@ -316,8 +316,12 @@ def sandbox_grant(payload: SandboxGrantRequest, admin: User = Depends(admin_user
             db.flush()
         txid = "SBX-" + uuid.uuid4().hex[:24].upper()
         wallet.balance = Decimal(wallet.balance) + payload.amount
-        db.add(SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
-                                  amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"))
+        db.add_all([
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
+                               amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"),
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=admin.id,
+                               amount=-payload.amount, entry_type="TEST_FAUCET_DEBIT", mode="SANDBOX")
+        ])
         db.add(AdminAuditLog(admin_user_id=admin.id, action="sandbox_test_credit", target=target.phone,
                              details=f"{payload.amount} BDT non-redeemable sandbox credit"))
     return {"transaction_id":txid, "amount":str(payload.amount), "mode":"SANDBOX",
@@ -341,8 +345,13 @@ def sandbox_internal_transfer(payload: SandboxTransferRequest, idempotency_key: 
                 "real_money":False, "redeemable":False}
     db.commit()
     with db.begin():
-        sender_wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == user.id, SandboxWallet.mode == "SANDBOX").with_for_update())
-        recipient_wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == recipient.id, SandboxWallet.mode == "SANDBOX").with_for_update())
+        locked_wallets = db.scalars(select(SandboxWallet).where(
+            SandboxWallet.user_id.in_(sorted([user.id, recipient.id])),
+            SandboxWallet.mode == "SANDBOX"
+        ).order_by(SandboxWallet.user_id).with_for_update()).all()
+        wallet_map = {wallet.user_id: wallet for wallet in locked_wallets}
+        sender_wallet = wallet_map.get(user.id)
+        recipient_wallet = wallet_map.get(recipient.id)
         if sender_wallet is None or Decimal(sender_wallet.balance) < payload.amount:
             raise HTTPException(status_code=400, detail="Sandbox ব্যালেন্স পর্যাপ্ত নয়।")
         if recipient_wallet is None:
