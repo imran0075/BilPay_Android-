@@ -172,7 +172,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="BilPay API", description="Shared API foundation for BilPay Android, web and admin clients.", version="0.3.0", lifespan=lifespan)
 origins = os.getenv("BILPAY_ALLOWED_ORIGINS", "https://bilpay-official.onrender.com,https://bilpay-official-site.onrender.com,https://bilpay.com.bd,https://www.bilpay.com.bd")
-app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in origins.split(",") if x.strip()], allow_credentials=False, allow_methods=["GET","POST","PUT"], allow_headers=["Content-Type","Authorization"])
+app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in origins.split(",") if x.strip()], allow_credentials=False, allow_methods=["GET","POST","PUT"], allow_headers=["Content-Type","Authorization","Idempotency-Key"])
 
 SERVICES = [
  {"id":"electricity","name":"বিদ্যুৎ বিল","category":"bill","enabled":False},
