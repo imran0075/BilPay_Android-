@@ -19,8 +19,9 @@ Bangladesh Bank-এর PSD Circular No. 12 অনুযায়ী NPSB interopera
 
 ## 2. Regulatory / commercial blocking gates
 
-- [ ] Bangladesh Bank-এর সঙ্গে লিখিতভাবে নির্ধারণ: BilPay নিজে PSP/e-money issuer হবে, নাকি licensed PSP/bank-এর technology/distribution partner হবে।
-- [ ] BilPay-এর বর্তমান sole-proprietor trade licence দিয়ে model অনুমোদনযোগ্য কি না যাচাই; PSP licence-এর জন্য company incorporation ও eligibility/document requirements লাগতে পারে।
+- [ ] **প্রথমে operating model বাছাই:** BilPay নিজে লাইসেন্স নেবে, নাকি licensed PSP/bank-এর অধীনে অনুমোদিত technology/distribution partner হবে—Bangladesh Bank ও আইনজীবীর লিখিত মতামত নিতে হবে।
+- [ ] **নিজস্ব PSP licence-এর eligibility যাচাই:** Bangladesh Bank-এর প্রকাশিত PSP approval procedure-এ applicant-কে Companies Act অনুযায়ী incorporated company হতে হবে; প্রকাশিত guideline-এ ন্যূনতম paid-up capital ৳20 কোটি, সংশ্লিষ্ট key personnel-এর কমপক্ষে ৩ বছরের অভিজ্ঞতা এবং বাংলাদেশে technology infrastructure উল্লেখ আছে। ২০২৪ সালের Payment and Settlement Systems Act ও পরবর্তী নির্দেশনার আলোকে এই শর্তের বর্তমান প্রয়োগ Bangladesh Bank-এর কাছ থেকে লিখিতভাবে পুনরায় নিশ্চিত করতে হবে। বর্তমান sole-proprietor trade licence-কে PSP licence-এর বিকল্প ধরা যাবে না।
+- [ ] **Partner-first বিকল্প:** licensed PSP/bank-এর সঙ্গে MoU/contract, customer-fund custody and settlement structure, responsibility matrix, service scope, fee sharing, dispute/reversal, data processing ও audit rights লিখিতভাবে স্থির করা।
 - [ ] Sponsor/settlement bank এবং licensed PSP partner-এর চুক্তি।
 - [ ] bKash merchant/payment gateway এবং আলাদা payout/disbursement access-এর লিখিত অনুমোদন। সাধারণ merchant checkout approval wallet funding/payout permission নয়।
 - [ ] NPSB participant/partner route, supported destinations, fees, limits, settlement and dispute rules লিখিতভাবে নিশ্চিত।
@@ -28,7 +29,7 @@ Bangladesh Bank-এর PSD Circular No. 12 অনুযায়ী NPSB interopera
 - [ ] Customer terms, privacy notice, fee disclosure, refund/reversal, complaints and service-level policy legal review।
 - [ ] Security assessment, incident response, business continuity and disaster recovery sign-off।
 
-Bangladesh Bank-এর MFS Regulations 2022 bank/FI/Government-led model এবং PSP licensing-এর কথা বলে। Bangladesh Bank guidance অনুযায়ী PSP wallet/e-money service দিতে পারে এবং trust-cum-settlement arrangement লাগে। লাইসেন্স ছাড়া payment service বা payment system পরিচালনা করা যাবে না।
+Payment and Settlement Systems Act, 2024-এর অধীনে বাংলাদেশ ব্যাংকের লাইসেন্স ছাড়া payment service বা payment system পরিচালনা করা যাবে না। PSP-এর অনুমোদিত scope-এর মধ্যে e-money/payment instrument থাকলে তবেই তা দেওয়া যাবে; published BB PSP procedure-এ Trust Cum Settlement Account-এর কথাও আছে। Customer funds operating account-এ রাখা যাবে না; regulator/partner-approved trust/settlement arrangement লাগবে।
 
 ## 3. Ledger architecture
 
