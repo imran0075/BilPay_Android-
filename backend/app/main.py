@@ -307,6 +307,7 @@ def sandbox_grant(payload: SandboxGrantRequest, admin: User = Depends(admin_user
     target = db.scalar(select(User).where(User.phone == payload.user_phone))
     if target is None:
         raise HTTPException(status_code=404, detail="পরীক্ষার অ্যাকাউন্ট পাওয়া যায়নি।")
+    db.commit()
     with db.begin():
         wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == target.id).with_for_update())
         if wallet is None:
@@ -338,6 +339,7 @@ def sandbox_internal_transfer(payload: SandboxTransferRequest, idempotency_key: 
         return {"transaction_id":existing.transaction_id, "amount":str(existing.amount), "fee":"0.00",
                 "recipient_credit":str(existing.amount), "status":existing.status, "mode":"SANDBOX",
                 "real_money":False, "redeemable":False}
+    db.commit()
     with db.begin():
         sender_wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == user.id, SandboxWallet.mode == "SANDBOX").with_for_update())
         recipient_wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == recipient.id, SandboxWallet.mode == "SANDBOX").with_for_update())
