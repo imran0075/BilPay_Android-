@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pwdlib import PasswordHash
 from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
+from sqlalchemy.exc import IntegrityError
 
 db_url = os.getenv("DATABASE_URL", "").strip()
 if not db_url:
@@ -337,40 +338,64 @@ def sandbox_internal_transfer(payload: SandboxTransferRequest, idempotency_key: 
         raise HTTPException(status_code=404, detail="প্রাপকের BilPay অ্যাকাউন্ট পাওয়া যায়নি।")
     if recipient.id == user.id:
         raise HTTPException(status_code=400, detail="নিজের অ্যাকাউন্টে Send Money করা যাবে না।")
-    existing = db.scalar(select(SandboxTransfer).where(SandboxTransfer.idempotency_key == idempotency_key))
-    if existing:
+
+    def replay_or_conflict():
+        existing = db.scalar(select(SandboxTransfer).where(SandboxTransfer.idempotency_key == idempotency_key))
+        if existing is None:
+            raise HTTPException(status_code=409, detail="অনুরোধটি একই সময়ে জমা হয়েছে; ব্যালেন্স আবার যাচাই করে চেষ্টা করুন।")
         if existing.sender_id != user.id or existing.recipient_id != recipient.id or existing.amount != payload.amount:
             raise HTTPException(status_code=409, detail="এই Idempotency-Key আগে অন্য অনুরোধে ব্যবহৃত হয়েছে।")
         return {"transaction_id":existing.transaction_id, "amount":str(existing.amount), "fee":"0.00",
                 "recipient_credit":str(existing.amount), "status":existing.status, "mode":"SANDBOX",
                 "real_money":False, "redeemable":False}
+
+    existing = db.scalar(select(SandboxTransfer).where(SandboxTransfer.idempotency_key == idempotency_key))
+    if existing:
+        return replay_or_conflict()
+
     db.commit()
-    with db.begin():
-        locked_wallets = db.scalars(select(SandboxWallet).where(
-            SandboxWallet.user_id.in_(sorted([user.id, recipient.id])),
-            SandboxWallet.mode == "SANDBOX"
-        ).order_by(SandboxWallet.user_id).with_for_update()).all()
-        wallet_map = {wallet.user_id: wallet for wallet in locked_wallets}
-        sender_wallet = wallet_map.get(user.id)
-        recipient_wallet = wallet_map.get(recipient.id)
-        if sender_wallet is None or Decimal(sender_wallet.balance) < payload.amount:
-            raise HTTPException(status_code=400, detail="Sandbox ব্যালেন্স পর্যাপ্ত নয়।")
-        if recipient_wallet is None:
-            recipient_wallet = SandboxWallet(user_id=recipient.id, balance=Decimal("0.00"), mode="SANDBOX")
-            db.add(recipient_wallet)
-            db.flush()
-        txid = "SBX-" + uuid.uuid4().hex[:24].upper()
-        sender_wallet.balance = Decimal(sender_wallet.balance) - payload.amount
-        recipient_wallet.balance = Decimal(recipient_wallet.balance) + payload.amount
-        db.add(SandboxTransfer(transaction_id=txid, idempotency_key=idempotency_key, sender_id=user.id,
-                               recipient_id=recipient.id, amount=payload.amount, fee=Decimal("0.00"),
-                               status="POSTED", mode="SANDBOX"))
-        db.add_all([
-            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=user.id,
-                               amount=-payload.amount, entry_type="TRANSFER_DEBIT", mode="SANDBOX"),
-            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=recipient.id,
-                               amount=payload.amount, entry_type="TRANSFER_CREDIT", mode="SANDBOX")
-        ])
+    try:
+        with db.begin():
+            locked_wallets = db.scalars(select(SandboxWallet).where(
+                SandboxWallet.user_id.in_(sorted([user.id, recipient.id])),
+                SandboxWallet.mode == "SANDBOX"
+            ).order_by(SandboxWallet.user_id).with_for_update()).all()
+            wallet_map = {wallet.user_id: wallet for wallet in locked_wallets}
+            sender_wallet = wallet_map.get(user.id)
+            recipient_wallet = wallet_map.get(recipient.id)
+
+            if sender_wallet is None or Decimal(sender_wallet.balance) < payload.amount:
+                raise HTTPException(status_code=400, detail="Sandbox ব্যালেন্স পর্যাপ্ত নয়।")
+
+            if recipient_wallet is None:
+                recipient_wallet = SandboxWallet(user_id=recipient.id, balance=Decimal("0.00"), mode="SANDBOX")
+                try:
+                    with db.begin_nested():
+                        db.add(recipient_wallet)
+                        db.flush()
+                except IntegrityError:
+                    recipient_wallet = db.scalar(select(SandboxWallet).where(
+                        SandboxWallet.user_id == recipient.id, SandboxWallet.mode == "SANDBOX"
+                    ).with_for_update())
+                    if recipient_wallet is None:
+                        raise
+
+            txid = "SBX-" + uuid.uuid4().hex[:24].upper()
+            sender_wallet.balance = Decimal(sender_wallet.balance) - payload.amount
+            recipient_wallet.balance = Decimal(recipient_wallet.balance) + payload.amount
+            db.add(SandboxTransfer(transaction_id=txid, idempotency_key=idempotency_key, sender_id=user.id,
+                                   recipient_id=recipient.id, amount=payload.amount, fee=Decimal("0.00"),
+                                   status="POSTED", mode="SANDBOX"))
+            db.add_all([
+                SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=user.id,
+                                   amount=-payload.amount, entry_type="TRANSFER_DEBIT", mode="SANDBOX"),
+                SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=recipient.id,
+                                   amount=payload.amount, entry_type="TRANSFER_CREDIT", mode="SANDBOX")
+            ])
+    except IntegrityError:
+        db.rollback()
+        return replay_or_conflict()
+
     return {"transaction_id":txid, "amount":str(payload.amount), "fee":"0.00",
             "recipient_credit":str(payload.amount), "status":"POSTED", "mode":"SANDBOX",
             "real_money":False, "redeemable":False, "message":"পরীক্ষামূলক Send Money সফল; কোনো বাস্তব টাকা স্থানান্তর হয়নি।"}
