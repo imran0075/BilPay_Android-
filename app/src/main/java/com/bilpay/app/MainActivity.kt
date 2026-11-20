@@ -235,6 +235,7 @@ class MainActivity : Activity() {
         when {
             lower == "সেবা" || lower == "আরও সেবা" -> showServices()
             lower == "প্রোফাইল" -> showProfile()
+            lower == "পরীক্ষামূলক ওয়ালেট" -> showSandboxWallet()
             lower == "সাপোর্ট" || lower == "সহায়তা" -> showSupport()
             lower == "হোম" -> showInfo("BilPay", "আপনি BilPay-এর হোম স্ক্রিনে আছেন।")
             lower == "হিসাব" || lower == "লেনদেন" -> showHistory()
@@ -632,6 +633,155 @@ class MainActivity : Activity() {
         showInfo("সেবা এখনো চালু নয়", "$service-এর অনুমোদিত বিলার API ও পেমেন্ট যাচাই সংযোগ সম্পন্ন হলে এই সেবা চালু হবে। এখন কোনো বিল জমা বা টাকা কাটা হবে না।")
     }
 
+    private fun sandboxRequest(method: String, path: String, token: String, payload: JSONObject? = null, idempotencyKey: String? = null): Pair<Int, String> {
+        val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + path).openConnection() as HttpURLConnection).apply {
+            requestMethod = method
+            connectTimeout = 15000
+            readTimeout = 15000
+            setRequestProperty("Authorization", "Bearer $token")
+            setRequestProperty("Accept", "application/json")
+            if (payload != null) {
+                doOutput = true
+                setRequestProperty("Content-Type", "application/json")
+            }
+            if (!idempotencyKey.isNullOrBlank()) setRequestProperty("Idempotency-Key", idempotencyKey)
+        }
+        if (payload != null) connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+        val code = connection.responseCode
+        val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+        val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+        connection.disconnect()
+        return code to body
+    }
+
+    private fun showSandboxWallet() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "Sandbox Wallet ব্যবহার করতে আগে BilPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        val progress = android.app.ProgressDialog(this).apply { setMessage("Sandbox Wallet যাচাই হচ্ছে…"); setCancelable(false); show() }
+        Thread {
+            var balance = ""
+            var error = ""
+            try {
+                val (statusCode, statusBody) = sandboxRequest("GET", "/api/v1/sandbox/status", token)
+                if (statusCode !in 200..299) error = "Sandbox সার্ভার যাচাই করা যায়নি (HTTP $statusCode)।"
+                else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) error = "Sandbox Wallet এখনো Staging সার্ভারে চালু হয়নি। এটি বাস্তব ওয়ালেট নয়; চালু হলে এখানে পরীক্ষামূলক ব্যালেন্স দেখাবে।"
+                else {
+                    val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
+                    if (walletCode in 200..299) balance = JSONObject(walletBody).optString("balance", "0.00")
+                    else error = "Sandbox ব্যালেন্স পাওয়া যায়নি (HTTP $walletCode)।"
+                }
+            } catch (e: Exception) { error = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
+            runOnUiThread {
+                progress.dismiss()
+                if (error.isNotBlank()) showInfo("Sandbox Wallet", error)
+                else renderSandboxWallet(token, balance)
+            }
+        }.start()
+    }
+
+    private fun renderSandboxWallet(token: String, balance: String) {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(12), dp(20), dp(4))
+        }
+        panel.addView(text("পরীক্ষামূলক ব্যালেন্স", 12f, muted, true))
+        panel.addView(text("৳ $balance", 30f, dark, true).apply { setPadding(0, dp(6), 0, dp(4)) })
+        panel.addView(text("এটি Sandbox-এর কাল্পনিক অর্থ। বাস্তবে জমা, উত্তোলন বা ব্যবহার করা যাবে না।", 11f, muted))
+        val actions = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(16), 0, 0)
+        }
+        val send = Button(this).apply { text = "ফ্রি Send Money"; setOnClickListener { showSandboxTransfer(token) } }
+        val history = Button(this).apply { text = "ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
+        actions.addView(send, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
+        actions.addView(history, LinearLayout.LayoutParams(0, dp(48), 1f))
+        panel.addView(actions)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BilPay Sandbox Wallet")
+            .setView(panel)
+            .setPositiveButton("বন্ধ", null)
+            .show()
+    }
+
+    private fun showSandboxTransfer(token: String) {
+        val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
+        val phone = EditText(this).apply { hint = "প্রাপকের BilPay নম্বর"; inputType = android.text.InputType.TYPE_CLASS_PHONE }
+        val amount = EditText(this).apply { hint = "পরিমাণ (৳)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL }
+        form.addView(phone); form.addView(amount)
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Sandbox Send Money")
+            .setMessage("ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স স্থানান্তর হবে।")
+            .setView(form)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("পাঠান", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val recipient = normalizeBdPhone(phone.text.toString())
+                val value = amount.text.toString().trim()
+                val decimal = value.toBigDecimalOrNull()
+                if (!recipient.matches(Regex("^01[3-9][0-9]{8}$")) || decimal == null || decimal <= java.math.BigDecimal.ZERO || decimal.scale() > 2 || decimal > java.math.BigDecimal("10000")) {
+                    showInfo("তথ্য যাচাই", "সঠিক ১১ সংখ্যার BilPay নম্বর এবং ৳০.০১ থেকে ৳১০,০০০ পর্যন্ত পরিমাণ লিখুন।")
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                val progress = android.app.ProgressDialog(this).apply { setMessage("পরীক্ষামূলক ট্রান্সফার হচ্ছে…"); setCancelable(false); show() }
+                Thread {
+                    var message = "অনুরোধ সম্পন্ন হয়নি।"
+                    var success = false
+                    try {
+                        val payload = JSONObject().put("recipient_phone", recipient).put("amount", decimal.setScale(2, java.math.RoundingMode.UNNECESSARY).toPlainString())
+                        val (code, body) = sandboxRequest("POST", "/api/v1/sandbox/transfers/internal", token, payload, java.util.UUID.randomUUID().toString())
+                        val json = JSONObject(body)
+                        if (code in 200..299) {
+                            success = true
+                            message = "পরীক্ষামূলক Send Money সফল।\nপ্রাপক পেয়েছেন: ৳" + json.optString("recipient_credit") + "\nফি: ৳0.00\nবাস্তব টাকা স্থানান্তর হয়নি।"
+                        } else {
+                            val detail = json.opt("detail")
+                            message = if (detail is String) detail else if (detail is JSONObject) detail.optString("message", "HTTP $code") else "অনুরোধ সম্পন্ন হয়নি (HTTP $code)।"
+                        }
+                    } catch (e: Exception) { message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
+                    runOnUiThread {
+                        progress.dismiss()
+                        showInfo(if (success) "Sandbox ট্রান্সফার সফল" else "ট্রান্সফার হয়নি", message)
+                        if (success) showSandboxWallet()
+                    }
+                }.start()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun showSandboxHistory(token: String) {
+        val progress = android.app.ProgressDialog(this).apply { setMessage("Sandbox ইতিহাস আনা হচ্ছে…"); setCancelable(false); show() }
+        Thread {
+            var message = ""
+            var error = ""
+            try {
+                val (code, body) = sandboxRequest("GET", "/api/v1/sandbox/transactions", token)
+                if (code !in 200..299) error = "ইতিহাস পাওয়া যায়নি (HTTP $code)।"
+                else {
+                    val items = JSONObject(body).optJSONArray("items")
+                    if (items == null || items.length() == 0) message = "এখনো কোনো পরীক্ষামূলক Send Money নেই।"
+                    else {
+                        val rows = mutableListOf<String>()
+                        for (i in 0 until items.length()) {
+                            val row = items.optJSONObject(i) ?: continue
+                            val direction = if (row.optString("direction") == "OUT") "পাঠিয়েছেন" else "পেয়েছেন"
+                            rows.add(direction + " • ৳" + row.optString("amount") + " • ফি ৳0.00 • " + row.optString("status"))
+                        }
+                        message = rows.joinToString("\n")
+                    }
+                }
+            } catch (e: Exception) { error = "সংযোগ সমস্যা: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
+            runOnUiThread { progress.dismiss(); showInfo("Sandbox লেনদেন", if (error.isNotBlank()) error else message) }
+        }.start()
+    }
+
     private fun showHistory() {
         showInfo("লেনদেনের ইতিহাস", "বাস্তব আর্থিক লেজার এখনো চালু করা হয়নি। পরীক্ষামূলক বা ডেমো লেনদেন এখানে দেখানো হবে না। নিরাপদ সার্ভার-সাইড লেজার প্রস্তুত হলে আপনার প্রকৃত লেনদেনের ইতিহাস এখানে দেখা যাবে।")
     }
@@ -767,6 +917,17 @@ class MainActivity : Activity() {
             setPadding(0, dp(6), 0, 0)
         })
         page.addView(financeNotice)
+
+        val sandboxCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = shape(Color.rgb(255, 248, 225), 17)
+            elevation = dp(1).toFloat()
+            setOnClickListener { action("পরীক্ষামূলক ওয়ালেট") }
+        }
+        sandboxCard.addView(text("🧪  Sandbox Wallet • পরীক্ষামূলক", 13f, ink, true))
+        sandboxCard.addView(text("Staging চালু থাকলে ফি ছাড়া Send Money ও পরীক্ষামূলক ব্যালেন্স দেখা যাবে। বাস্তব টাকা নয়।", 10f, muted).apply { setPadding(0, dp(5), 0, 0) })
+        page.addView(sandboxCard, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
 
         val safety = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
