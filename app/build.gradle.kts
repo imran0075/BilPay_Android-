@@ -39,6 +39,11 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            // Keep the staging app separate from the production installation.
+            applicationIdSuffix = ".staging"
+            buildConfigField("String", "API_BASE_URL", "\"https://bilpay-sandbox-api.onrender.com\"")
+        }
         getByName("release") {
             // Use the stable CI debug identity only as a temporary installable fallback.
             // A genuine production release still requires the private permanent keystore.
