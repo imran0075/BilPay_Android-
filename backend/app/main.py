@@ -227,7 +227,8 @@ class SandboxTransferRequest(BaseModel):
 def sandbox_enabled():
     if os.getenv("BILPAY_SANDBOX_LEDGER_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}:
         raise HTTPException(status_code=503, detail={"code":"SANDBOX_DISABLED","message":"Sandbox wallet এখনো চালু করা হয়নি।"})
-\nclass ServiceVisibilityRequest(BaseModel):
+
+class ServiceVisibilityRequest(BaseModel):
     visible: bool
 
 @app.get("/")
@@ -385,7 +386,8 @@ def sandbox_history(user: User = Depends(current_user), db: Session = Depends(ge
                       "direction":"OUT" if r.sender_id == user.id else "IN", "status":r.status,
                       "mode":"SANDBOX", "real_money":False} for r in rows]}
 
-\n@app.get("/api/v1/wallet")
+
+@app.get("/api/v1/wallet")
 def get_wallet(user:User=Depends(current_user),db:Session=Depends(get_db)):
     # No wallet is exposed unless a future approved real ledger is explicitly enabled.
     if os.getenv("BILPAY_LIVE_LEDGER_ENABLED", "false").strip().lower() not in {"1","true","yes","on"}:
