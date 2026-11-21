@@ -243,10 +243,10 @@ class MainActivity : Activity() {
                 lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
                 lower.contains("শিক্ষা") || lower.contains("হাসপাতাল") || lower.contains("সরকারি") ||
                 lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
-            lower.contains("অ্যাড মানি") || lower.contains("সেন্ড মানি") || lower.contains("ক্যাশ") ||
-                lower.contains("ট্রান্সফার") || lower.contains("qr") || lower.contains("bkash") ||
-                lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
-                showInfo("সেবা চালুর অপেক্ষায়", "এই সেবার অনুমোদিত আর্থিক অংশীদার API ও চুক্তি এখনো যুক্ত হয়নি। তাই কোনো টাকা গ্রহণ, পাঠানো বা ব্যালেন্স দেখানো হচ্ছে না। API যুক্ত হলে সরাসরি বাস্তব সেবা চালু করা হবে।")
+            lower.contains("সেন্ড মানি") || lower.contains("ট্রান্সফার") -> showSandboxWallet()
+            lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") || lower.contains("qr") ||
+                lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
+                showInfo("সেবা চালুর অপেক্ষায়", "Cash In, Cash Out ও বাহ্যিক ট্রান্সফার এখনো চালু নয়। অনুমোদিত আর্থিক অংশীদার API ও চুক্তি যুক্ত হলে বাস্তব সেবা চালু হবে।")
             else -> showInfo("সেবা প্রস্তুত হচ্ছে", "এই সুবিধাটি বাস্তবভাবে চালুর জন্য প্রয়োজনীয় সার্ভার বা সেবাদাতা সংযোগ এখনো সম্পন্ন হয়নি।")
         }
     }
@@ -905,7 +905,8 @@ class MainActivity : Activity() {
         section(page, "বিল পেমেন্ট", "প্রয়োজনীয় সব বিল সহজে পরিশোধ করুন")
         grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
 
-        section(page, "মোবাইল ফিন্যান্স", "অনুমোদিত পার্টনার যুক্ত হলে সেবাগুলো এখানে দেখাবে")
+        section(page, "মোবাইল ফিন্যান্স", "পরীক্ষামূলক Send Money এবং আসন্ন আর্থিক সেবা")
+        grid(page, listOf("💸\nসেন্ড মানি", "➕\nক্যাশ ইন", "↗\nক্যাশ আউট", "⇄\nট্রান্সফার"))
         val financeNotice = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(15), dp(16), dp(15))
@@ -946,7 +947,7 @@ class MainActivity : Activity() {
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         apiStatus = text("অ্যাকাউন্ট প্রস্তুত • আর্থিক সেবা API সংযুক্তির অপেক্ষায়", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
-        page.addView(text("BilPay Android v1.3.2", 9f, soft).apply {
+        page.addView(text("BilPay Android v1.3.4", 9f, soft).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, 0)
         })
