@@ -783,7 +783,19 @@ class MainActivity : Activity() {
     }
 
     private fun showHistory() {
-        showInfo("লেনদেনের ইতিহাস", "বাস্তব আর্থিক লেজার এখনো চালু করা হয়নি। পরীক্ষামূলক বা ডেমো লেনদেন এখানে দেখানো হবে না। নিরাপদ সার্ভার-সাইড লেজার প্রস্তুত হলে আপনার প্রকৃত লেনদেনের ইতিহাস এখানে দেখা যাবে।")
+        // Staging users should see the isolated, non-redeemable Sandbox ledger.
+        // Production continues to show the live-ledger readiness notice until approved rails exist.
+        if (BuildConfig.API_BASE_URL.contains("sandbox", ignoreCase = true)) {
+            val token = securePrefs().getString("access_token", null)
+            if (token.isNullOrBlank()) {
+                showInfo("লগইন প্রয়োজন", "Sandbox লেনদেনের ইতিহাস দেখতে আগে BilPay Staging অ্যাকাউন্টে লগইন করুন।")
+                showAuthForm(false)
+            } else {
+                showSandboxHistory(token)
+            }
+        } else {
+            showInfo("লেনদেনের ইতিহাস", "বাস্তব আর্থিক লেজার এখনো চালু করা হয়নি। পরীক্ষামূলক বা ডেমো লেনদেন এখানে দেখানো হবে না। নিরাপদ সার্ভার-সাইড লেজার প্রস্তুত হলে আপনার প্রকৃত লেনদেনের ইতিহাস এখানে দেখা যাবে।")
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
