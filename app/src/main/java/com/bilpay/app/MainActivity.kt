@@ -664,6 +664,7 @@ class MainActivity : Activity() {
         val progress = android.app.ProgressDialog(this).apply { setMessage("Sandbox Wallet যাচাই হচ্ছে…"); setCancelable(false); show() }
         Thread {
             var balance = ""
+            var isAdmin = false
             var error = ""
             try {
                 val (statusCode, statusBody) = sandboxRequest("GET", "/api/v1/sandbox/status", token)
@@ -673,18 +674,18 @@ class MainActivity : Activity() {
                     val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
                     if (profileCode !in 200..299) error = "অ্যাকাউন্টের Admin অবস্থা যাচাই করা যায়নি (HTTP $profileCode)।"
                     else {
-                        val isAdmin = JSONObject(profileBody).optBoolean("is_admin", false)
+                        isAdmin = JSONObject(profileBody).optBoolean("is_admin", false)
                         val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
                         if (walletCode in 200..299) balance = JSONObject(walletBody).optString("balance", "0.00")
                         else error = "Sandbox ব্যালেন্স পাওয়া যায়নি (HTTP $walletCode)।"
-                        if (error.isBlank()) runOnUiThread { renderSandboxWallet(token, balance, isAdmin) }
+
                     }
                 }
             } catch (e: Exception) { error = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
             runOnUiThread {
                 progress.dismiss()
                 if (error.isNotBlank()) showInfo("Sandbox Wallet", error)
-                else if (error.isBlank()) renderSandboxWallet(token, balance, false)
+                else renderSandboxWallet(token, balance, isAdmin)
             }
         }.start()
     }
