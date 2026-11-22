@@ -670,20 +670,26 @@ class MainActivity : Activity() {
                 if (statusCode !in 200..299) error = "Sandbox সার্ভার যাচাই করা যায়নি (HTTP $statusCode)।"
                 else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) error = "Sandbox Wallet এখনো Staging সার্ভারে চালু হয়নি। এটি বাস্তব ওয়ালেট নয়; চালু হলে এখানে পরীক্ষামূলক ব্যালেন্স দেখাবে।"
                 else {
-                    val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
-                    if (walletCode in 200..299) balance = JSONObject(walletBody).optString("balance", "0.00")
-                    else error = "Sandbox ব্যালেন্স পাওয়া যায়নি (HTTP $walletCode)।"
+                    val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
+                    if (profileCode !in 200..299) error = "অ্যাকাউন্টের Admin অবস্থা যাচাই করা যায়নি (HTTP $profileCode)।"
+                    else {
+                        val isAdmin = JSONObject(profileBody).optBoolean("is_admin", false)
+                        val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
+                        if (walletCode in 200..299) balance = JSONObject(walletBody).optString("balance", "0.00")
+                        else error = "Sandbox ব্যালেন্স পাওয়া যায়নি (HTTP $walletCode)।"
+                        if (error.isBlank()) runOnUiThread { renderSandboxWallet(token, balance, isAdmin) }
+                    }
                 }
             } catch (e: Exception) { error = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
             runOnUiThread {
                 progress.dismiss()
                 if (error.isNotBlank()) showInfo("Sandbox Wallet", error)
-                else renderSandboxWallet(token, balance)
+                else if (error.isBlank()) renderSandboxWallet(token, balance, false)
             }
         }.start()
     }
 
-    private fun renderSandboxWallet(token: String, balance: String) {
+    private fun renderSandboxWallet(token: String, balance: String, isAdmin: Boolean) {
         val panel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(12), dp(20), dp(4))
@@ -697,11 +703,13 @@ class MainActivity : Activity() {
         }
         val send = Button(this).apply { text = "ফ্রি Send Money"; setOnClickListener { showSandboxTransfer(token) } }
         val history = Button(this).apply { text = "ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
-        val adminGrant = Button(this).apply { text = "Admin: ৳১,০০০ টেস্ট ব্যালেন্স"; setOnClickListener { requestSandboxAdminGrant(token) } }
         actions.addView(send, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
         actions.addView(history, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(actions)
-        panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
+        if (isAdmin) {
+            val adminGrant = Button(this).apply { text = "Admin: ৳১,০০০ টেস্ট ব্যালেন্স"; setOnClickListener { requestSandboxAdminGrant(token) } }
+            panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
+        }
         android.app.AlertDialog.Builder(this)
             .setTitle("BilPay Sandbox Wallet")
             .setView(panel)
