@@ -35,7 +35,9 @@ def test_free_internal_sandbox_transfer_and_idempotency(monkeypatch):
     with TestClient(api.app) as client:
         admin_phone, admin_headers = register(client, "019")
         monkeypatch.setenv("BILPAY_ADMIN_PHONES", admin_phone)
+        assert client.get("/api/v1/auth/me", headers=admin_headers).json()["is_admin"] is True
         sender_phone, sender_headers = register(client)
+        assert client.get("/api/v1/auth/me", headers=sender_headers).json()["is_admin"] is False
         recipient_phone, recipient_headers = register(client, "018")
 
         grant = client.post("/api/v1/admin/sandbox/grant", headers=admin_headers,
@@ -69,6 +71,7 @@ def test_sandbox_transfer_rejects_insufficient_funds_and_non_admin_grant(monkeyp
     with TestClient(api.app) as client:
         sender_phone, sender_headers = register(client)
         recipient_phone, _ = register(client, "018")
+        assert client.get("/api/v1/auth/me", headers=sender_headers).json()["is_admin"] is False
         denied = client.post("/api/v1/admin/sandbox/grant", headers=sender_headers,
                              json={"user_phone": sender_phone, "amount": "10.00"})
         transfer = client.post("/api/v1/sandbox/transfers/internal",
