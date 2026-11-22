@@ -46,11 +46,19 @@ jobs:
           assert code == 200 and account.get("access_token"), (code, account)
           token = account["access_token"]
 
+          code, profile = request("GET", "/api/v1/auth/me", token=token)
+          assert code == 200 and profile.get("is_admin") is False, (code, profile)
+
+          code, denied = request("POST", "/api/v1/admin/sandbox/grant", {
+              "user_phone": phone, "amount": "1000.00"
+          }, token=token)
+          assert code == 403, (code, denied)
+
           code, wallet = request("GET", "/api/v1/sandbox/wallet", token=token)
           assert code == 200 and wallet.get("mode") == "SANDBOX", (code, wallet)
           assert wallet.get("real_money") is False and wallet.get("redeemable") is False, wallet
 
           code, live = request("GET", "/api/v1/wallet", token=token)
           assert code == 503 and live.get("detail", {}).get("code") == "LIVE_LEDGER_NOT_CONFIGURED", (code, live)
-          print("PASS: staging API healthy; sandbox wallet isolated; live wallet remains disabled.")
+          print("PASS: staging API healthy; non-admin sandbox grant denied; sandbox isolated; live wallet remains disabled.")
           PY
