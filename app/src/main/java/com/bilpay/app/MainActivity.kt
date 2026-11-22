@@ -697,14 +697,56 @@ class MainActivity : Activity() {
         }
         val send = Button(this).apply { text = "ফ্রি Send Money"; setOnClickListener { showSandboxTransfer(token) } }
         val history = Button(this).apply { text = "ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
+        val adminGrant = Button(this).apply { text = "Admin: ৳১,০০০ টেস্ট ব্যালেন্স"; setOnClickListener { requestSandboxAdminGrant(token) } }
         actions.addView(send, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
         actions.addView(history, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(actions)
+        panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
         android.app.AlertDialog.Builder(this)
             .setTitle("BilPay Sandbox Wallet")
             .setView(panel)
             .setPositiveButton("বন্ধ", null)
             .show()
+    }
+
+    private fun requestSandboxAdminGrant(token: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Admin Sandbox ব্যালেন্স")
+            .setMessage("আপনার অ্যাকাউন্টে ৳১,০০০ পরীক্ষামূলক ব্যালেন্স যোগ করার অনুরোধ করবেন? এটি বাস্তব টাকা নয়। সার্ভার Admin অনুমতি যাচাই করবে।")
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("নিশ্চিত করুন") { _, _ ->
+                val progress = android.app.ProgressDialog(this).apply { setMessage("Admin অনুমতি যাচাই হচ্ছে…"); setCancelable(false); show() }
+                Thread {
+                    var message = "অনুরোধ সম্পন্ন হয়নি।"
+                    var success = false
+                    try {
+                        val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
+                        if (profileCode !in 200..299) {
+                            message = "অ্যাকাউন্ট যাচাই করা যায়নি (HTTP $profileCode)। আবার লগইন করুন।"
+                        } else {
+                            val phone = JSONObject(profileBody).optString("phone")
+                            val payload = JSONObject().put("user_phone", phone).put("amount", "1000.00")
+                            val (code, body) = sandboxRequest("POST", "/api/v1/admin/sandbox/grant", token, payload)
+                            val response = JSONObject(body)
+                            if (code in 200..299) {
+                                success = true
+                                message = "৳১,০০০ Sandbox টেস্ট ব্যালেন্স যোগ হয়েছে। এটি বাস্তব টাকা নয় এবং উত্তোলনযোগ্য নয়।"
+                            } else if (code == 403) {
+                                message = "এই অ্যাকাউন্টে Admin অনুমতি পাওয়া যায়নি।"
+                            } else {
+                                message = response.optString("detail").ifBlank { "সার্ভার উত্তর দিয়েছে (HTTP $code)।" }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        message = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা")
+                    }
+                    runOnUiThread {
+                        progress.dismiss()
+                        showInfo(if (success) "Sandbox ব্যালেন্স যোগ হয়েছে" else "অনুরোধ সম্পন্ন হয়নি", message)
+                        if (success) showSandboxWallet()
+                    }
+                }.start()
+            }.show()
     }
 
     private fun showSandboxTransfer(token: String) {
