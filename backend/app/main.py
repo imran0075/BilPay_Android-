@@ -36,6 +36,11 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
+    @property
+    def is_admin(self) -> bool:
+        allowed = {x.strip() for x in os.getenv("BILPAY_ADMIN_PHONES", "").split(",") if x.strip()}
+        return bool(allowed) and self.phone in allowed
+
 class Wallet(Base):
     __tablename__ = "wallets"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -140,10 +145,7 @@ def current_user(authorization: Optional[str] = Header(default=None), db: Sessio
     return user
 
 def admin_user(user: User = Depends(current_user)):
-    allowed = {x.strip() for x in os.getenv("BILPAY_ADMIN_PHONES", "").split(",") if x.strip()}
-    if not allowed:
-        raise HTTPException(status_code=503, detail="অ্যাডমিন অ্যাক্সেস এখনো নিরাপদভাবে কনফিগার করা হয়নি।")
-    if user.phone not in allowed:
+    if not user.is_admin:
         raise HTTPException(status_code=403, detail="এই অংশ ব্যবহারের অনুমতি নেই।")
     return user
 
@@ -200,6 +202,7 @@ class UserOut(BaseModel):
     id: int
     phone: str
     full_name: str
+    is_admin: bool = False
     model_config = ConfigDict(from_attributes=True)
 class AuthOut(BaseModel):
     access_token: str
