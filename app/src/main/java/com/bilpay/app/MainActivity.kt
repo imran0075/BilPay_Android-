@@ -398,14 +398,76 @@ class MainActivity : Activity() {
     }
 
     private fun showAccountSecurity(token: String, currentName: String, phone: String) {
+        val isAdminPhone = phone == "01858622055"
+        val options = if (isAdminPhone) {
+            arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন", "Sandbox টেস্ট ব্যালেন্স যোগ (৳১,০০০)")
+        } else {
+            arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন")
+        }
         android.app.AlertDialog.Builder(this)
             .setTitle("প্রোফাইল ও নিরাপত্তা")
-            .setItems(arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন")) { _, which ->
-                if (which == 0) showEditProfile(token, currentName)
-                else showChangePassword(token)
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> showEditProfile(token, currentName)
+                    1 -> showChangePassword(token)
+                    2 -> if (isAdminPhone) confirmSandboxGrant(token, phone)
+                }
             }
             .setNegativeButton("বন্ধ", null)
             .show()
+    }
+
+    private fun confirmSandboxGrant(token: String, adminPhone: String) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Sandbox টেস্ট ব্যালেন্স")
+            .setMessage("আপনার Admin অ্যাকাউন্টে ৳১,০০০ পরীক্ষামূলক ব্যালেন্স যোগ হবে। এটি বাস্তব টাকা নয়, উত্তোলন বা redeem করা যাবে না।")
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("নিশ্চিত করুন") { _, _ ->
+                grantSandboxBalance(token, adminPhone)
+            }
+            .show()
+    }
+
+    private fun grantSandboxBalance(token: String, adminPhone: String) {
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("Sandbox টেস্ট ব্যালেন্স যোগ হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            var success = false
+            var message = "সার্ভারের সঙ্গে যোগাযোগ করা যায়নি।"
+            try {
+                val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/admin/sandbox/grant").openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 15000
+                    readTimeout = 15000
+                    doOutput = true
+                    setRequestProperty("Authorization", "Bearer $token")
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("Accept", "application/json")
+                }
+                val payload = JSONObject().put("user_phone", adminPhone).put("amount", 1000)
+                connection.outputStream.use { it.write(payload.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+                connection.disconnect()
+                if (code in 200..299) {
+                    success = true
+                    message = "৳১,০০০ Sandbox টেস্ট ব্যালেন্স যোগ হয়েছে। এটি বাস্তব টাকা নয় এবং উত্তোলনযোগ্য নয়।"
+                } else {
+                    val detail = try { JSONObject(body).opt("detail") } catch (_: Exception) { null }
+                    message = if (detail is String) detail else "অনুরোধ সম্পন্ন হয়নি (HTTP $code)।"
+                }
+            } catch (e: Exception) {
+                message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                showInfo(if (success) "Sandbox সফল" else "Sandbox ব্যর্থ", message)
+            }
+        }.start()
     }
 
     private fun showEditProfile(token: String, currentName: String) {
