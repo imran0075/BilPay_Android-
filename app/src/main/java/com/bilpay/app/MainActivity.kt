@@ -698,6 +698,14 @@ class MainActivity : Activity() {
         panel.addView(text("পরীক্ষামূলক ব্যালেন্স", 12f, muted, true))
         panel.addView(text("৳ $balance", 30f, dark, true).apply { setPadding(0, dp(6), 0, dp(4)) })
         panel.addView(text("এটি Sandbox-এর কাল্পনিক অর্থ। বাস্তবে জমা, উত্তোলন বা ব্যবহার করা যাবে না।", 11f, muted))
+        panel.addView(
+            text(
+                if (isAdmin) "Admin অনুমতি: সক্রিয় ✓" else "Admin অনুমতি: সক্রিয় নয়",
+                12f,
+                muted,
+                true
+            ).apply { setPadding(0, dp(10), 0, 0) }
+        )
         val actions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(0, dp(16), 0, 0)
