@@ -894,7 +894,9 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(12), 0, 0)
         }
-        homeBalanceText = text("৳  • • • • • •", 25f, Color.WHITE, true)\n        balanceBottom.addView(homeBalanceText)
+        val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true)
+        homeBalanceText = balanceAmountText
+        balanceBottom.addView(balanceAmountText)
         balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         balanceBottom.addView(text("◉", 16f, Color.WHITE, true).apply {
             setPadding(dp(11), dp(9), dp(11), dp(9))
