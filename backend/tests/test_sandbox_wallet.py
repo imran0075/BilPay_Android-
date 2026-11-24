@@ -87,3 +87,26 @@ def test_sandbox_transfer_rejects_insufficient_funds_and_non_admin_grant(monkeyp
                                json={"recipient_phone":recipient_phone,"amount":"1.00"})
     assert denied.status_code == 403
     assert transfer.status_code == 400
+
+
+
+def test_sandbox_transfer_rejects_nonexistent_recipient_without_creating_transfer(monkeypatch):
+    monkeypatch.setenv("BILPAY_SANDBOX_LEDGER_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, sender_headers = register(client)
+        missing_phone = "016" + str(uuid4().int % 100_000_000).zfill(8)
+        with api.SessionLocal() as test_db:
+            transfers_before = test_db.query(api.SandboxTransfer).count()
+
+        response = client.post(
+            "/api/v1/sandbox/transfers/internal",
+            headers={**sender_headers, "Idempotency-Key": "sandbox-missing-recipient-001"},
+            json={"recipient_phone": missing_phone, "amount": "10.00"},
+        )
+
+        with api.SessionLocal() as test_db:
+            transfers_after = test_db.query(api.SandboxTransfer).count()
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "প্রাপকের BilPay অ্যাকাউন্ট পাওয়া যায়নি।"
+    assert transfers_after == transfers_before
