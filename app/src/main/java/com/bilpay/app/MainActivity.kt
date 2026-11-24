@@ -1020,8 +1020,8 @@ class MainActivity : Activity() {
             background = shape(Color.rgb(92, 101, 163), 20)
             isClickable = true
             setOnClickListener { toggleHomeBalance() }
-            addView(text("ট্যাপ ফর ব্যালেন্স", 9f, Color.WHITE, true))
-            addView(text("  ◉̸", 13f, Color.WHITE, true))
+            addView(text("Tap for Balance", 9f, Color.WHITE, true))
+            addView(text("  ◉̸", 11f, Color.WHITE, true))
         }
         balanceTop.addView(balanceHint)
         balance.addView(balanceTop)
@@ -1034,14 +1034,7 @@ class MainActivity : Activity() {
         homeBalanceText = balanceAmountText
         balanceBottom.addView(balanceAmountText)
         balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        balanceBottom.addView(text("◉", 16f, Color.WHITE, true).apply {
-            setPadding(dp(11), dp(9), dp(11), dp(9))
-            background = shape(Color.rgb(78, 89, 151), 22)
-        })
         balance.addView(balanceBottom)
-        balance.addView(text("ব্যালেন্স দেখতে কার্ডে চাপ দিন", 9f, Color.rgb(210, 216, 244)).apply {
-            setPadding(0, dp(10), 0, 0)
-        })
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
         // 4-column quick service grid, following the supplied reference layout.
