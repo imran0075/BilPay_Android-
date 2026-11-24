@@ -14,12 +14,12 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 
 ## 2. BPay-এর প্রস্তাবিত মডেল (আলোচনার জন্য)
 
-- Brand: BilPay
-- Business/trade name: BPay Technology (BPay Technology)
+- Brand: BPay
+- Business/trade name: BPay Technology
 - Current legal form: sole proprietorship (এটি PSP licence eligibility পূরণ করে—এমন দাবি করা হচ্ছে না)
 - Product: Android app + web service + admin console
 - Proposed services: customer onboarding, bill-payment/recharge service discovery, partner-authorized payment initiation, transaction status and receipts
-- Future wallet proposal: stored-value wallet, internal BilPay-to-BilPay transfer free to customer, and external transfers through approved bank/PSP/NPSB rails
+- Future wallet proposal: stored-value wallet, internal BPay-to-BPay transfer free to customer, and external transfers through approved bank/PSP/NPSB rails
 - Proposed internal transfer fee: ৳0; sender's debit equals recipient's credit
 - NPSB fee policy target: PSP category ceiling 0.20% (VAT-inclusive) only where that exact NPSB PSP route and classification apply; not a universal fee for Add Money, cash-out or all payouts
 - Current safety status: no live wallet balance, no real-money transfer, no cash-in/out or provider payout is enabled; provider APIs/production credentials are not connected
@@ -31,7 +31,7 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 3. যদি incorporated company, minimum paid-up capital, board/key-person criteria বা অন্য eligibility লাগে, বর্তমান applicable requirements কী?
 4. Proposed stored-value wallet ও internal P2P feature কি PSP licence scope-এর মধ্যে পড়ে, নাকি অন্য কোনো permitted structure আছে?
 5. bKash/Nagad/Rocket/Upay Add Money ও payout integration-এর জন্য পৃথক provider approval/contract কীভাবে নিতে হবে?
-6. NPSB-তে PSP partner model-এ BilPay-এর role, participant sponsorship, settlement, fee disclosure ও limits কীভাবে নির্ধারিত হবে?
+6. NPSB-তে PSP partner model-এ BPay-এর role, participant sponsorship, settlement, fee disclosure ও limits কীভাবে নির্ধারিত হবে?
 7. Pilot-এর জন্য কোন application form, technical documents, security assessment, customer-protection controls ও reporting লাগবে?
 
 ## 4. প্রাথমিক তথ্য-ঘর (এখনো পূরণ/যাচাই বাকি)
@@ -67,11 +67,11 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 
 Dear Sir/Madam,
 
-We are developing BilPay under the business name BPay Technology in Bangladesh. BilPay is planned as a digital financial-services application with an Android app, web interface and administrative console.
+We are developing BPay under the business name BPay Technology in Bangladesh. BPay is planned as a digital financial-services application with an Android app, web interface and administrative console.
 
-We would like to understand the appropriate regulatory structure before offering any payment or stored-value service. In particular, we seek guidance on whether BilPay may participate in an RFFO-supported fintech pilot as a technology/distribution partner under a Bangladesh Bank-licensed bank or PSP, without independently holding customer funds or operating an unlicensed payment service.
+We would like to understand the appropriate regulatory structure before offering any payment or stored-value service. In particular, we seek guidance on whether BPay may participate in an RFFO-supported fintech pilot as a technology/distribution partner under a Bangladesh Bank-licensed bank or PSP, without independently holding customer funds or operating an unlicensed payment service.
 
-Our proposed long-term roadmap includes partner-authorized bill payments and mobile recharge, a stored-value wallet, free customer-to-customer transfers within BilPay, and external transfers through approved bank/PSP/NPSB rails. These services are not currently live: wallet balances, cash-in/out, real-money transfers and provider payouts remain disabled.
+Our proposed long-term roadmap includes partner-authorized bill payments and mobile recharge, a stored-value wallet, free customer-to-customer transfers within BPay, and external transfers through approved bank/PSP/NPSB rails. These services are not currently live: wallet balances, cash-in/out, real-money transfers and provider payouts remain disabled.
 
 Could you please advise:
 1. Whether our current sole-proprietorship business structure may submit an RFFO proposal;
