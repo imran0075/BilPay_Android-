@@ -1,25 +1,25 @@
-# BilPay বাস্তব ওয়ালেট প্রস্তুতি পরিকল্পনা
+# BPay বাস্তব ওয়ালেট প্রস্তুতি পরিকল্পনা
 
 এই নথি প্রস্তুতির checklist; এটি কোনো লাইসেন্স, চুক্তি, API অনুমোদন বা live payment activation নয়।
 
 ## 1. প্রস্তাবিত চার্জ নীতি
 
-| সেবা | BilPay গ্রাহক ফি | শর্ত |
+| সেবা | BPay গ্রাহক ফি | শর্ত |
 |---|---:|---|
-| BilPay → BilPay Send Money | ৳0 | অনুমোদিত wallet/ledger, KYC ও risk limits |
-| NPSB-তে PSP হিসেবে BilPay → অন্য অংশগ্রহণকারী | সর্বোচ্চ 0.20% (VAT-সহ) | কেবল প্রযোজ্য NPSB PSP transfer; BilPay-এর PSP status, participant route ও লিখিত tariff নিশ্চিত হলে |
-| bKash → BilPay Add Money | এখনো নির্ধারিত নয় | bKash/partner-এর লিখিত funding permission ও tariff |
-| BilPay → bKash | এখনো নির্ধারিত নয় | অনুমোদিত payout বা NPSB route; route অনুযায়ী fee-cap |
+| BPay → BPay Send Money | ৳0 | অনুমোদিত wallet/ledger, KYC ও risk limits |
+| NPSB-তে PSP হিসেবে BPay → অন্য অংশগ্রহণকারী | সর্বোচ্চ 0.20% (VAT-সহ) | কেবল প্রযোজ্য NPSB PSP transfer; BPay-এর PSP status, participant route ও লিখিত tariff নিশ্চিত হলে |
+| bKash → BPay Add Money | এখনো নির্ধারিত নয় | bKash/partner-এর লিখিত funding permission ও tariff |
+| BPay → bKash | এখনো নির্ধারিত নয় | অনুমোদিত payout বা NPSB route; route অনুযায়ী fee-cap |
 | Cash Out | এখনো নির্ধারিত নয় | অনুমোদিত channel, agent/partner agreement ও প্রকাশিত tariff |
-| BilPay → Bank | গ্রাহকের জন্য ৳0 (লক্ষ্য) | partner cost, settlement fee ও subsidy budget নিশ্চিত |
+| BPay → Bank | গ্রাহকের জন্য ৳0 (লক্ষ্য) | partner cost, settlement fee ও subsidy budget নিশ্চিত |
 
-**NPSB 0.20% সব ধরনের লেনদেনের সাধারণ ফি নয়।** এটি কেবল Bangladesh Bank-এর নির্ধারিত শ্রেণিতে BilPay যদি PSP হিসেবে NPSB interoperable transfer করে, সেই নির্দিষ্ট রুটের সর্বোচ্চ (VAT-সহ) চার্জ। bKash Add Money, bKash payout, Cash Out বা অন্য payment gateway-এর চার্জ আলাদা চুক্তি/রুট/নিয়মে নির্ধারিত হবে। এসব ক্ষেত্রে এখনই 0.20% বা ৳3/৳1,000 নিশ্চিত করা হচ্ছে না। Internal BilPay-to-BilPay Send Money গ্রাহকের জন্য সম্পূর্ণ ফ্রি থাকবে—প্রেরক ৳500 পাঠালে প্রাপক ৳500 পাবেন; কোনো শতাংশ বা নির্দিষ্ট ট্রান্সফার ফি নয়। কোনো সেবাকে unlimited বলা যাবে না; প্রযোজ্য account-type, KYC, risk ও regulatory limits থাকবে।
+**NPSB 0.20% সব ধরনের লেনদেনের সাধারণ ফি নয়।** এটি কেবল Bangladesh Bank-এর নির্ধারিত শ্রেণিতে BPay যদি PSP হিসেবে NPSB interoperable transfer করে, সেই নির্দিষ্ট রুটের সর্বোচ্চ (VAT-সহ) চার্জ। bKash Add Money, bKash payout, Cash Out বা অন্য payment gateway-এর চার্জ আলাদা চুক্তি/রুট/নিয়মে নির্ধারিত হবে। এসব ক্ষেত্রে এখনই 0.20% বা ৳3/৳1,000 নিশ্চিত করা হচ্ছে না। Internal BPay-to-BPay Send Money গ্রাহকের জন্য সম্পূর্ণ ফ্রি থাকবে—প্রেরক ৳500 পাঠালে প্রাপক ৳500 পাবেন; কোনো শতাংশ বা নির্দিষ্ট ট্রান্সফার ফি নয়। কোনো সেবাকে unlimited বলা যাবে না; প্রযোজ্য account-type, KYC, risk ও regulatory limits থাকবে।
 
-Bangladesh Bank-এর PSD Circular No. 12 অনুযায়ী NPSB interoperable fund transfer-এ সর্বোচ্চ (VAT-সহ) Bank 0.15%, PSP 0.20%, MFS 0.85%; sender pays, receiver pays না এবং account-type limits বহাল। BilPay-এর regulatory classification ও actual rail লিখিতভাবে নিশ্চিত না করে কোনো NPSB tariff production-এ প্রয়োগ করা যাবে না।
+Bangladesh Bank-এর PSD Circular No. 12 অনুযায়ী NPSB interoperable fund transfer-এ সর্বোচ্চ (VAT-সহ) Bank 0.15%, PSP 0.20%, MFS 0.85%; sender pays, receiver pays না এবং account-type limits বহাল। BPay-এর regulatory classification ও actual rail লিখিতভাবে নিশ্চিত না করে কোনো NPSB tariff production-এ প্রয়োগ করা যাবে না।
 
 ## 2. Regulatory / commercial blocking gates
 
-- [ ] **প্রথমে operating model বাছাই:** BilPay নিজে লাইসেন্স নেবে, নাকি licensed PSP/bank-এর অধীনে অনুমোদিত technology/distribution partner হবে—Bangladesh Bank ও আইনজীবীর লিখিত মতামত নিতে হবে।
+- [ ] **প্রথমে operating model বাছাই:** BPay নিজে লাইসেন্স নেবে, নাকি licensed PSP/bank-এর অধীনে অনুমোদিত technology/distribution partner হবে—Bangladesh Bank ও আইনজীবীর লিখিত মতামত নিতে হবে।
 - [ ] **নিজস্ব PSP licence-এর eligibility যাচাই:** Bangladesh Bank-এর প্রকাশিত PSP approval procedure-এ applicant-কে Companies Act অনুযায়ী incorporated company হতে হবে; প্রকাশিত guideline-এ ন্যূনতম paid-up capital ৳20 কোটি, সংশ্লিষ্ট key personnel-এর কমপক্ষে ৩ বছরের অভিজ্ঞতা এবং বাংলাদেশে technology infrastructure উল্লেখ আছে। ২০২৪ সালের Payment and Settlement Systems Act ও পরবর্তী নির্দেশনার আলোকে এই শর্তের বর্তমান প্রয়োগ Bangladesh Bank-এর কাছ থেকে লিখিতভাবে পুনরায় নিশ্চিত করতে হবে। বর্তমান sole-proprietor trade licence-কে PSP licence-এর বিকল্প ধরা যাবে না।
 - [ ] **Partner-first বিকল্প:** licensed PSP/bank-এর সঙ্গে MoU/contract, customer-fund custody and settlement structure, responsibility matrix, service scope, fee sharing, dispute/reversal, data processing ও audit rights লিখিতভাবে স্থির করা।
 - [ ] Sponsor/settlement bank এবং licensed PSP partner-এর চুক্তি।
@@ -47,7 +47,7 @@ Payment and Settlement Systems Act, 2024-এর অধীনে বাংলা�
 ## 4. Proposed API (approval না পাওয়া পর্যন্ত disabled)
 
 - GET /api/v1/wallet — verified available/ledger balance.
-- POST /api/v1/transfers/internal — BilPay-to-BilPay; idempotency key; fee = 0.
+- POST /api/v1/transfers/internal — BPay-to-BPay; idempotency key; fee = 0.
 - POST /api/v1/funding/intents — Add Money intent; verified provider success ছাড়া credit নয়।
 - POST /api/v1/payouts — approved MFS/bank withdrawal.
 - GET /api/v1/transactions/{id} — owner-only status.
