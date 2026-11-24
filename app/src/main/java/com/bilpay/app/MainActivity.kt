@@ -497,72 +497,92 @@ class MainActivity : Activity() {
         panel.addView(text("পরীক্ষামূলক ব্যালেন্স", 12f, muted, true))
         panel.addView(text("৳ $balance", 30f, dark, true).apply { setPadding(0, dp(6), 0, dp(4)) })
         panel.addView(text("এটি Sandbox-এর কাল্পনিক অর্থ। বাস্তবে জমা, উত্তোলন বা ব্যবহার করা যাবে না।", 11f, muted))
-        panel.addView(
-            text(
-                if (isAdmin) "Admin অনুমতি: সক্রিয় ✓" else "Admin অনুমতি: সক্রিয় নয়",
-                12f,
-                muted,
-                true
-            ).apply { setPadding(0, dp(10), 0, 0) }
-        )
-        val actions = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(16), 0, 0)
-        }
+        panel.addView(text(if (isAdmin) "Admin অনুমতি: সক্রিয় ✓" else "Admin অনুমতি: সক্রিয় নয়", 12f, muted, true).apply { setPadding(0, dp(10), 0, 0) })
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(16), 0, 0) }
         val send = Button(this).apply { text = "ফ্রি Send Money"; setOnClickListener { showSandboxTransfer(token) } }
         val history = Button(this).apply { text = "ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
         actions.addView(send, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
         actions.addView(history, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(actions)
         if (isAdmin) {
-            val adminGrant = Button(this).apply { text = "Admin: ৳১,০০০ টেস্ট ব্যালেন্স"; setOnClickListener { requestSandboxAdminGrant(token) } }
+            val adminGrant = Button(this).apply {
+                text = "Admin: Sandbox ব্যালেন্স যোগ"
+                setOnClickListener { requestSandboxAdminGrant(token) }
+            }
             panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
+            panel.addView(text("একবারে সর্বোচ্চ ৳১০,০০,০০০ • শুধু নিজের Admin Sandbox Wallet", 10f, muted).apply { setPadding(0, dp(5), 0, 0) })
         }
-        android.app.AlertDialog.Builder(this)
-            .setTitle("BPay Sandbox Wallet")
-            .setView(panel)
-            .setPositiveButton("বন্ধ", null)
-            .show()
+        android.app.AlertDialog.Builder(this).setTitle("BPay Sandbox Wallet").setView(panel).setPositiveButton("বন্ধ", null).show()
     }
 
     private fun requestSandboxAdminGrant(token: String) {
-        android.app.AlertDialog.Builder(this)
+        val amountInput = EditText(this).apply {
+            hint = "পরিমাণ (সর্বোচ্চ ১০০০০০০)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText("1000000")
+            setPadding(dp(14), dp(12), dp(14), dp(12))
+        }
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+            addView(text("আপনার নিজের Admin Sandbox Wallet-এ কত টাকা যোগ করবেন?", 13f, dark, true))
+            addView(amountInput, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(10) })
+            addView(text("সর্বোচ্চ ৳১০,০০,০০০। এটি কাল্পনিক Sandbox ব্যালেন্স; বাস্তব টাকা নয়।", 10f, muted).apply { setPadding(0, dp(8), 0, 0) })
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("Admin Sandbox ব্যালেন্স")
-            .setMessage("আপনার অ্যাকাউন্টে ৳১,০০০ পরীক্ষামূলক ব্যালেন্স যোগ করার অনুরোধ করবেন? এটি বাস্তব টাকা নয়। সার্ভার Admin অনুমতি যাচাই করবে।")
+            .setView(form)
             .setNegativeButton("বাতিল", null)
-            .setPositiveButton("নিশ্চিত করুন") { _, _ ->
-                val progress = android.app.ProgressDialog(this).apply { setMessage("Admin অনুমতি যাচাই হচ্ছে…"); setCancelable(false); show() }
-                Thread {
-                    var message = "অনুরোধ সম্পন্ন হয়নি।"
-                    var success = false
-                    try {
-                        val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
-                        if (profileCode !in 200..299) {
-                            message = "অ্যাকাউন্ট যাচাই করা যায়নি (HTTP $profileCode)। আবার লগইন করুন।"
-                        } else {
-                            val phone = JSONObject(profileBody).optString("phone")
-                            val payload = JSONObject().put("user_phone", phone).put("amount", "1000.00")
-                            val (code, body) = sandboxRequest("POST", "/api/v1/admin/sandbox/grant", token, payload)
-                            val response = JSONObject(body)
-                            if (code in 200..299) {
-                                success = true
-                                message = "৳১,০০০ Sandbox টেস্ট ব্যালেন্স যোগ হয়েছে। এটি বাস্তব টাকা নয় এবং উত্তোলনযোগ্য নয়।"
-                            } else if (code == 403) {
-                                message = "এই অ্যাকাউন্টে Admin অনুমতি পাওয়া যায়নি।"
-                            } else {
-                                message = response.optString("detail").ifBlank { "সার্ভার উত্তর দিয়েছে (HTTP $code)।" }
+            .setPositiveButton("ক্রেডিট করুন", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val amount = amountInput.text.toString().trim().toBigDecimalOrNull()
+                if (amount == null || amount <= java.math.BigDecimal.ZERO ||
+                    amount.scale() > 2 || amount > java.math.BigDecimal("1000000")) {
+                    showInfo("পরিমাণ সঠিক নয়", "৳০.০১ থেকে ৳১০,০০,০০০-এর মধ্যে সর্বোচ্চ দুই দশমিকসহ পরিমাণ লিখুন।")
+                    return@setOnClickListener
+                }
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("ক্রেডিট নিশ্চিত করুন")
+                    .setMessage("আপনার নিজের Admin Sandbox Wallet-এ ৳" + amount.toPlainString() + " কাল্পনিক টেস্ট ব্যালেন্স যোগ করবেন?")
+                    .setNegativeButton("না", null)
+                    .setPositiveButton("হ্যাঁ, যোগ করুন") { _, _ ->
+                        dialog.dismiss()
+                        val progress = android.app.ProgressDialog(this).apply { setMessage("Admin অনুমতি যাচাই ও ক্রেডিট হচ্ছে…"); setCancelable(false); show() }
+                        Thread {
+                            var message = "অনুরোধ সম্পন্ন হয়নি।"
+                            var success = false
+                            try {
+                                val (code, body) = sandboxRequest(
+                                    "POST", "/api/v1/admin/sandbox/grant", token,
+                                    JSONObject().put("amount", amount.setScale(2, java.math.RoundingMode.UNNECESSARY).toPlainString())
+                                )
+                                val response = JSONObject(body)
+                                if (code in 200..299) {
+                                    success = true
+                                    message = "আপনার নিজের Admin Sandbox Wallet-এ ৳" + response.optString("amount", amount.toPlainString()) +
+                                        " যোগ হয়েছে। Transaction ID: " + response.optString("transaction_id", "সার্ভারে সংরক্ষিত") +
+                                        "\\nএটি বাস্তব টাকা নয় এবং উত্তোলনযোগ্য নয়।"
+                                } else if (code == 403) {
+                                    message = "এই অ্যাকাউন্টে Admin অনুমতি পাওয়া যায়নি।"
+                                } else {
+                                    val detail = response.opt("detail")
+                                    message = if (detail is String) detail else "সার্ভার উত্তর দিয়েছে (HTTP $code)।"
+                                }
+                            } catch (e: Exception) {
+                                message = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা")
                             }
-                        }
-                    } catch (e: Exception) {
-                        message = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা")
-                    }
-                    runOnUiThread {
-                        progress.dismiss()
-                        showInfo(if (success) "Sandbox ব্যালেন্স যোগ হয়েছে" else "অনুরোধ সম্পন্ন হয়নি", message)
-                        if (success) showSandboxWallet()
-                    }
-                }.start()
-            }.show()
+                            runOnUiThread {
+                                progress.dismiss()
+                                showInfo(if (success) "Sandbox ব্যালেন্স যোগ হয়েছে" else "অনুরোধ সম্পন্ন হয়নি", message)
+                                if (success) showSandboxWallet()
+                            }
+                        }.start()
+                    }.show()
+            }
+        }
+        dialog.show()
     }
 
     private fun showSandboxTransfer(token: String) {
