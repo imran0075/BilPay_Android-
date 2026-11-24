@@ -83,7 +83,7 @@ jobs:
           APK_SHA256="$(sha256sum "$APK" | awk '{print $1}')"
           echo "APK_SHA256=$APK_SHA256" >> "$GITHUB_ENV"
 
-      - name: Publish latest signed APK for in-app updates
+      - name: Publish latest signed APK release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: bilpay-latest
@@ -93,7 +93,7 @@ jobs:
           overwrite_files: true
           fail_on_unmatched_files: true
 
-      - name: Publish version metadata for in-app updates
+      - name: Update release metadata for legacy app versions
         shell: bash
         run: |
           set -euo pipefail
