@@ -817,7 +817,7 @@ class MainActivity : Activity() {
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         apiStatus = text("অ্যাকাউন্ট প্রস্তুত • আর্থিক সেবা API সংযুক্তির অপেক্ষায়", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
-        page.addView(text("BPay Android v1.3.6", 9f, soft).apply {
+        page.addView(text("BPay Android v${BuildConfig.VERSION_NAME}", 9f, soft).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, 0)
         })
