@@ -397,7 +397,7 @@ class MainActivity : Activity() {
                         try {
                             val endpoint = if (register) "/api/v1/auth/register" else "/api/v1/auth/login"
                             val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + endpoint).openConnection() as HttpURLConnection).apply {
-                                requestMethod = "POST"; connectTimeout = 15000; readTimeout = 15000
+                                requestMethod = "POST"; connectTimeout = 90000; readTimeout = 90000
                                 doOutput = true; setRequestProperty("Content-Type", "application/json")
                             }
                             val body = JSONObject().apply {
