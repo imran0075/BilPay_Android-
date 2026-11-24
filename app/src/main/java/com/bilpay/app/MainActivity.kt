@@ -712,7 +712,7 @@ class MainActivity : Activity() {
                     var success = false
                     try {
                         val payload = JSONObject().put("recipient_phone", recipient).put("amount", decimal.setScale(2, java.math.RoundingMode.UNNECESSARY).toPlainString())
-                        val (code, body) = sandboxRequest("POST", "/api/v1/sandbox/transfers/internal", token, payload, java.util.UUID.randomUUID().toString())
+                        val (code, body) = sandboxRequest("POST", "/api/v1/sandbox/transfers/internal", token, payload, (if (isFundTransfer) "FUND_TRANSFER-" else "SEND_MONEY-") + java.util.UUID.randomUUID().toString())
                         val json = JSONObject(body)
                         if (code in 200..299) {
                             success = true
@@ -733,46 +733,132 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    private fun showSandboxHistory(token: String) {
-        val progress = android.app.ProgressDialog(this).apply { setMessage("Sandbox ইতিহাস আনা হচ্ছে…"); setCancelable(false); show() }
+    private fun inboxDateTime(raw: String): String {
+        return try {
+            val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+            parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            val date = parser.parse(raw.take(19)) ?: return raw
+            val formatter = java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale("bn", "BD"))
+            formatter.timeZone = java.util.TimeZone.getDefault()
+            formatter.format(date)
+        } catch (_: Exception) { raw.ifBlank { "সময় পাওয়া যায়নি" } }
+    }
+
+    private fun showInbox() {
+        if (!BuildConfig.API_BASE_URL.contains("sandbox", ignoreCase = true)) {
+            showInfo("ইনবক্স", "প্রকৃত লেনদেনের ইনবক্স লাইভ লেজার ও অনুমোদিত পেমেন্ট সংযোগ চালু হলে দেখাবে।")
+            return
+        }
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("ইনবক্স দেখতে লগইন করুন", "লেনদেনের বিবরণ দেখতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        loadInbox(token)
+    }
+
+    private fun loadInbox(token: String) {
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("ইনবক্সের লেনদেন আনা হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
         Thread {
-            var message = ""
+            var items = org.json.JSONArray()
             var error = ""
             try {
-                val (code, body) = sandboxRequest("GET", "/api/v1/sandbox/transactions", token)
-                if (code !in 200..299) error = "ইতিহাস পাওয়া যায়নি (HTTP $code)।"
-                else {
-                    val items = JSONObject(body).optJSONArray("items")
-                    if (items == null || items.length() == 0) message = "এখনো কোনো পরীক্ষামূলক Send Money নেই।"
-                    else {
-                        val rows = mutableListOf<String>()
-                        for (i in 0 until items.length()) {
-                            val row = items.optJSONObject(i) ?: continue
-                            val direction = if (row.optString("direction") == "OUT") "পাঠিয়েছেন" else "পেয়েছেন"
-                            rows.add(direction + " • ৳" + row.optString("amount") + " • ফি ৳0.00 • " + row.optString("status"))
-                        }
-                        message = rows.joinToString("\n")
-                    }
-                }
-            } catch (e: Exception) { error = "সংযোগ সমস্যা: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
-            runOnUiThread { progress.dismiss(); showInfo("Sandbox লেনদেন", if (error.isNotBlank()) error else message) }
+                val (code, body) = sandboxRequest("GET", "/api/v1/sandbox/transactions?limit=100", token)
+                if (code in 200..299) items = JSONObject(body).optJSONArray("items") ?: org.json.JSONArray()
+                else error = "লেনদেনের তথ্য পাওয়া যায়নি (HTTP " + code + ")।"
+            } catch (e: Exception) {
+                error = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা")
+            }
+            runOnUiThread {
+                progress.dismiss()
+                if (error.isNotBlank()) showInfo("ইনবক্স লোড হয়নি", error)
+                else renderInbox(items, token)
+            }
         }.start()
     }
 
-    private fun showHistory() {
-        // Staging users should see the isolated, non-redeemable Sandbox ledger.
-        // Production continues to show the live-ledger readiness notice until approved rails exist.
-        if (BuildConfig.API_BASE_URL.contains("sandbox", ignoreCase = true)) {
-            val token = securePrefs().getString("access_token", null)
-            if (token.isNullOrBlank()) {
-                showInfo("লগইন প্রয়োজন", "Sandbox লেনদেনের ইতিহাস দেখতে আগে BPay Staging অ্যাকাউন্টে লগইন করুন।")
-                showAuthForm(false)
-            } else {
-                showSandboxHistory(token)
-            }
-        } else {
-            showInfo("লেনদেনের ইতিহাস", "বাস্তব আর্থিক লেজার এখনো চালু করা হয়নি। পরীক্ষামূলক বা ডেমো লেনদেন এখানে দেখানো হবে না। নিরাপদ সার্ভার-সাইড লেজার প্রস্তুত হলে আপনার প্রকৃত লেনদেনের ইতিহাস এখানে দেখা যাবে।")
+    private fun renderInbox(items: org.json.JSONArray, token: String) {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(10), dp(16), dp(12))
         }
+        if (items.length() == 0) {
+            panel.addView(text("এখনো কোনো লেনদেন নেই", 14f, muted, true).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(28), 0, dp(28))
+            })
+        } else {
+            val groups = listOf("SEND_MONEY" to "সেন্ড মানি", "FUND_TRANSFER" to "ফান্ড ট্রান্সফার", "OTHER" to "অন্যান্য")
+            for ((kind, heading) in groups) {
+                val matching = (0 until items.length()).mapNotNull { index ->
+                    items.optJSONObject(index)?.takeIf { row ->
+                        val actual = row.optString("transaction_type", "SEND_MONEY")
+                        if (kind == "OTHER") actual != "SEND_MONEY" && actual != "FUND_TRANSFER" else actual == kind
+                    }
+                }
+                if (matching.isEmpty()) continue
+                panel.addView(text(heading, 14f, dark, true).apply { setPadding(0, dp(12), 0, dp(8)) })
+                for (row in matching) {
+                    val outgoing = row.optString("direction") == "OUT"
+                    val phone = if (outgoing) row.optString("recipient_phone") else row.optString("sender_phone")
+                    val phoneLabel = if (outgoing) "প্রাপকের নম্বর" else "প্রেরকের নম্বর"
+                    val statusRaw = row.optString("status").uppercase()
+                    val status = when (statusRaw) {
+                        "POSTED", "SUCCESS", "COMPLETED" -> "সফল"
+                        "PENDING" -> "অপেক্ষমাণ"
+                        "FAILED" -> "ব্যর্থ"
+                        else -> row.optString("status").ifBlank { "অজানা" }
+                    }
+                    val card = LinearLayout(this).apply {
+                        orientation = LinearLayout.VERTICAL
+                        setPadding(dp(14), dp(12), dp(14), dp(12))
+                        background = GradientDrawable().apply {
+                            setColor(Color.WHITE)
+                            cornerRadius = dp(14).toFloat()
+                            setStroke(dp(1), Color.rgb(226, 231, 242))
+                        }
+                        elevation = dp(1).toFloat()
+                    }
+                    val top = LinearLayout(this).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = Gravity.CENTER_VERTICAL
+                    }
+                    top.addView(text(if (outgoing) "টাকা পাঠানো হয়েছে" else "টাকা এসেছে", 12f, dark, true))
+                    top.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+                    top.addView(text(status, 10f, green, true))
+                    card.addView(top)
+                    card.addView(text("৳ " + row.optString("amount", "—"), 21f, dark, true).apply {
+                        setPadding(0, dp(7), 0, dp(7))
+                    })
+                    card.addView(text(phoneLabel + ": " + phone.ifBlank { "তথ্য পাওয়া যায়নি" }, 11f, muted))
+                    card.addView(text("ট্রানজেকশন আইডি: " + row.optString("transaction_id", "—"), 10f, muted).apply {
+                        setPadding(0, dp(7), 0, dp(3))
+                    })
+                    card.addView(text("তারিখ ও সময়: " + inboxDateTime(row.optString("created_at")), 10f, muted))
+                    panel.addView(card, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(9) })
+                }
+            }
+        }
+        val scroll = ScrollView(this).apply { addView(panel); isFillViewport = true }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BPay ইনবক্স • লেনদেন")
+            .setView(scroll)
+            .setPositiveButton("রিফ্রেশ") { _, _ -> loadInbox(token) }
+            .setNegativeButton("বন্ধ", null)
+            .show()
+    }
+
+    private fun showSandboxHistory(token: String) {
+        loadInbox(token)
+    }
+
+    private fun showHistory() {
+        showInbox()
     }
 
     private fun toggleHomeBalance() {
@@ -1036,7 +1122,18 @@ class MainActivity : Activity() {
                         "অফার" -> showInfo("BPay Offers", "অফার সুবিধা চালুর প্রস্তুতি চলছে।")
                         "QR" -> showInfo("QR Payment", "QR পেমেন্ট অনুমোদিত মার্চেন্ট API যুক্ত হলে চালু হবে।")
                         "সার্চ" -> showServices()
-                        else -> showServices()
+                        else -> android.app.AlertDialog.Builder(this)
+                            .setTitle("আরও সেবা")
+                            .setItems(arrayOf("ইনবক্স • লেনদেন", "সকল সেবা", "প্রোফাইল", "সাপোর্ট")) { _, which ->
+                                when (which) {
+                                    0 -> showInbox()
+                                    1 -> showServices()
+                                    2 -> showProfile()
+                                    else -> showSupport()
+                                }
+                            }
+                            .setNegativeButton("বন্ধ", null)
+                            .show()
                     }
                 }
             }
