@@ -348,6 +348,7 @@ class MainActivity : Activity() {
             var message = "প্রোফাইল তথ্য পাওয়া যায়নি।"
             var profileName = "নাম দেওয়া হয়নি"
             var profilePhone = ""
+            var profileIsAdmin = false
             var sessionExpired = false
             try {
                 val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/auth/me").openConnection() as HttpURLConnection).apply {
@@ -365,6 +366,7 @@ class MainActivity : Activity() {
                     val user = JSONObject(body)
                     profileName = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
                     profilePhone = user.optString("phone")
+                    profileIsAdmin = user.optBoolean("is_admin", false)
                     message = "নাম: $profileName\\nমোবাইল: $profilePhone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
                 } else if (code == 401) {
                     sessionExpired = true
@@ -386,7 +388,7 @@ class MainActivity : Activity() {
                     android.app.AlertDialog.Builder(this)
                         .setTitle(title)
                         .setMessage(message)
-                        .setNeutralButton("নিরাপত্তা ও প্রোফাইল") { _, _ -> showAccountSecurity(token, profileName, profilePhone) }
+                        .setNeutralButton("নিরাপত্তা ও প্রোফাইল") { _, _ -> showAccountSecurity(token, profileName, profilePhone, profileIsAdmin) }
                         .setNegativeButton("বন্ধ", null)
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
@@ -397,9 +399,8 @@ class MainActivity : Activity() {
         }.start()
     }
 
-    private fun showAccountSecurity(token: String, currentName: String, phone: String) {
-        val isAdminPhone = phone == "01858622055"
-        val options = if (isAdminPhone) {
+    private fun showAccountSecurity(token: String, currentName: String, phone: String, isAdmin: Boolean) {
+        val options = if (isAdmin) {
             arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন", "Sandbox টেস্ট ব্যালেন্স যোগ (৳১,০০০)")
         } else {
             arrayOf("নাম পরিবর্তন", "পাসওয়ার্ড পরিবর্তন")
@@ -410,7 +411,7 @@ class MainActivity : Activity() {
                 when (which) {
                     0 -> showEditProfile(token, currentName)
                     1 -> showChangePassword(token)
-                    2 -> if (isAdminPhone) confirmSandboxGrant(token, phone)
+                    2 -> if (isAdmin) confirmSandboxGrant(token, phone)
                 }
             }
             .setNegativeButton("বন্ধ", null)
