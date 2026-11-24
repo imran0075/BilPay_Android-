@@ -515,14 +515,11 @@ class MainActivity : Activity() {
             runOnUiThread {
                 if (!dialog.isShowing) return@runOnUiThread
                 if (error.isNotBlank()) {
-                    val errorPanel = LinearLayout(this).apply {
-                        orientation = LinearLayout.VERTICAL
-                        setPadding(dp(20), dp(12), dp(20), dp(4))
-                        addView(text("⚠  ব্যালেন্স যাচাই করা যায়নি", 15f, dark, true))
-                        addView(text(error, 12f, muted).apply { setPadding(0, dp(8), 0, dp(8)) })
-                        addView(text("কোনো ব্যালেন্স অনুমান করে দেখানো হয়নি।", 10f, muted))
-                    }
-                    dialog.setView(errorPanel)
+                    loadingPanel.removeAllViews()
+                    loadingPanel.setPadding(dp(20), dp(18), dp(20), dp(12))
+                    loadingPanel.addView(text("⚠  ব্যালেন্স যাচাই করা যায়নি", 15f, dark, true))
+                    loadingPanel.addView(text(error, 12f, muted).apply { setPadding(0, dp(8), 0, dp(8)) })
+                    loadingPanel.addView(text("কোনো ব্যালেন্স অনুমান করে দেখানো হয়নি।", 10f, muted))
                     dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).visibility = View.VISIBLE
                     dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                         dialog.dismiss()
