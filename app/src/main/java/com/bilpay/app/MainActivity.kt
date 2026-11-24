@@ -848,7 +848,6 @@ class MainActivity : Activity() {
         root.addView(nav)
         setContentView(root)
         checkApiConnection()
-        checkForUpdate()
     }
 
     private fun checkApiConnection() {
