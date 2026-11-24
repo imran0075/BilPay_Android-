@@ -222,8 +222,8 @@ class PaymentIntentRequest(BaseModel):
     currency: Literal["BDT"] = "BDT"
 
 class SandboxGrantRequest(BaseModel):
-    user_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
-    amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+    # Admin-only sandbox top-up. A single credit may be at most BDT 1,000,000.
+    amount: Decimal = Field(gt=0, le=Decimal("1000000"), max_digits=12, decimal_places=2)
 class SandboxTransferRequest(BaseModel):
     recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
@@ -308,30 +308,27 @@ def sandbox_wallet(user: User = Depends(current_user), db: Session = Depends(get
 
 @app.post("/api/v1/admin/sandbox/grant")
 def sandbox_grant(payload: SandboxGrantRequest, admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    # Credits are restricted to the authenticated admin's own sandbox wallet.
     sandbox_enabled()
-    target = db.scalar(select(User).where(User.phone == payload.user_phone))
-    if target is None:
-        raise HTTPException(status_code=404, detail="পরীক্ষার অ্যাকাউন্ট পাওয়া যায়নি।")
     db.commit()
     with db.begin():
-        wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == target.id).with_for_update())
+        wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == admin.id).with_for_update())
         if wallet is None:
-            wallet = SandboxWallet(user_id=target.id, balance=Decimal("0.00"), mode="SANDBOX")
+            wallet = SandboxWallet(user_id=admin.id, balance=Decimal("0.00"), mode="SANDBOX")
             db.add(wallet)
             db.flush()
         txid = "SBX-" + uuid.uuid4().hex[:24].upper()
         wallet.balance = Decimal(wallet.balance) + payload.amount
-        # A test grant credits the target sandbox wallet. Do not post a
-        # synthetic debit to the admin's customer wallet: the test faucet is
-        # a non-customer funding source, recorded by the admin audit log.
         db.add(SandboxLedgerEntry(
-            entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
+            entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=admin.id,
             amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"
         ))
-        db.add(AdminAuditLog(admin_user_id=admin.id, action="sandbox_test_credit", target=target.phone,
-                             details=f"{payload.amount} BDT non-redeemable sandbox credit"))
+        db.add(AdminAuditLog(admin_user_id=admin.id, action="admin_self_sandbox_credit", target=admin.phone,
+                             details=f"{payload.amount} BDT non-redeemable admin-only sandbox credit"))
     return {"transaction_id":txid, "amount":str(payload.amount), "mode":"SANDBOX",
-            "real_money":False, "redeemable":False, "message":"শুধু পরীক্ষার জন্য কাল্পনিক ব্যালেন্স যোগ হয়েছে; বাস্তব টাকা নয়।"}
+            "credited_account":"admin_self", "maximum_single_credit":"1000000.00",
+            "real_money":False, "redeemable":False,
+            "message":"শুধু অ্যাডমিনের নিজস্ব পরীক্ষামূলক ওয়ালেটে কাল্পনিক ব্যালেন্স যোগ হয়েছে; বাস্তব টাকা নয়।"}
 
 @app.post("/api/v1/sandbox/transfers/internal")
 def sandbox_internal_transfer(payload: SandboxTransferRequest, idempotency_key: str = Header(..., alias="Idempotency-Key", min_length=8, max_length=100),
