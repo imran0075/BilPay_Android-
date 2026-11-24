@@ -1048,6 +1048,27 @@ class MainActivity : Activity() {
         val menuDivider = View(this).apply { setBackgroundColor(Color.rgb(244, 211, 151)) }
         brandMenu.addView(menuDivider, LinearLayout.LayoutParams(dp(22), dp(1)))
         brandMenu.addView(text("≡", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+        val notificationButton = TextView(this).apply {
+            text = "♧"
+            textSize = 23f
+            gravity = Gravity.CENTER
+            setTextColor(navy)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(224, 174, 61))
+            }
+            isClickable = true
+            isFocusable = true
+            contentDescription = "নোটিফিকেশন"
+            setOnClickListener {
+                showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।")
+            }
+        }
+        val notificationParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+            marginEnd = dp(8)
+        }
+        header.addView(notificationButton, notificationParams)
         header.addView(brandMenu, LinearLayout.LayoutParams(dp(48), dp(48)))
         page.addView(header)
 
