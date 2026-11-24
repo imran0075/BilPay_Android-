@@ -678,164 +678,183 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val canvas = Color.rgb(246, 249, 247)
-        val ink = Color.rgb(18, 37, 33)
-        val soft = Color.rgb(111, 128, 120)
-        val accent = Color.rgb(0, 132, 91)
-        window.statusBarColor = canvas
-        window.navigationBarColor = Color.WHITE
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+        val pageBg = Color.rgb(247, 248, 252)
+        val navy = Color.rgb(34, 43, 105)
+        val navy2 = Color.rgb(48, 61, 133)
+        val red = Color.rgb(205, 35, 54)
+        val gold = Color.rgb(224, 174, 61)
+        val ink = Color.rgb(30, 35, 54)
+        val soft = Color.rgb(119, 126, 148)
+        window.statusBarColor = navy
+        window.navigationBarColor = navy
+        window.decorView.systemUiVisibility = 0
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(canvas)
+            setBackgroundColor(pageBg)
         }
-        val scroll = ScrollView(this).apply { clipToPadding = false }
+        val scroll = ScrollView(this).apply { clipToPadding = false; isFillViewport = false }
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(26))
+            setPadding(dp(18), dp(16), dp(18), dp(22))
         }
 
-        // Compact BPay brand header aligned to the start side
-        val brand = LinearLayout(this).apply {
+        // Premium BPay header
+        val header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(2), 0, dp(2))
+            setPadding(dp(2), dp(3), dp(2), dp(14))
         }
-        val mark = ImageView(this).apply {
-            setImageResource(R.drawable.bilpay_home_logo)
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "BPay home logo"
-        }
-        brand.addView(mark, LinearLayout.LayoutParams(dp(38), dp(38)))
-        val brandText = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), 0, 0, 0)
-        }
-        brandText.addView(text("BPay", 19f, ink, true))
-        brandText.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true).apply { setPadding(0, dp(2), 0, 0) })
-        brand.addView(brandText, LinearLayout.LayoutParams(-2, -2))
-        // Keep the BPay brand on the left and the overflow/settings menu on the right.
-        brand.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        val moreButton = TextView(this).apply {
-            text = "⋮"
-            textSize = 29f
+        val avatar = TextView(this).apply {
+            text = "B"
+            textSize = 20f
+            setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(ink)
-            contentDescription = "সেটিংস ও আরও অপশন"
-            setPadding(dp(12), 0, dp(4), 0)
-            setOnClickListener { anchor ->
-                val popup = android.widget.PopupMenu(this@MainActivity, anchor)
-                popup.menu.add("সেটিংস")
-                popup.menu.add("প্রোফাইল")
-                popup.menu.add("সাপোর্ট")
-                popup.setOnMenuItemClickListener { item ->
-                    when (item.title.toString()) {
-                         "সেটিংস" -> showInfo("সেটিংস", "BPay অ্যাকাউন্ট ও নিরাপত্তা সেটিংস। বাস্তব আর্থিক সেবা অনুমোদিত API যুক্ত হওয়ার পর চালু হবে.")
-                        "প্রোফাইল" -> showProfile()
-                        "সাপোর্ট" -> showSupport()
-                    }
-                    true
-                }
-                popup.show()
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(red)
+                setStroke(dp(2), Color.rgb(244, 211, 151))
             }
         }
-        brand.addView(moreButton, LinearLayout.LayoutParams(dp(44), dp(44)))
-        page.addView(brand, LinearLayout.LayoutParams(-1, dp(48)))
-
-        val welcome = LinearLayout(this).apply {
+        header.addView(avatar, LinearLayout.LayoutParams(dp(46), dp(46)))
+        val identity = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(25), 0, dp(13))
+            setPadding(dp(10), 0, 0, 0)
         }
-        welcome.addView(text("স্বাগতম 👋", 13f, soft, true))
-        welcome.addView(text("আপনার সব পেমেন্ট, এক অ্যাপে", 20f, ink, true).apply { setPadding(0, dp(4), 0, 0) })
-        page.addView(welcome)
+        identity.addView(text("BPay", 19f, ink, true))
+        identity.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true))
+        header.addView(identity)
+        header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        val bell = TextView(this).apply {
+            text = "♧"
+            textSize = 25f
+            gravity = Gravity.CENTER
+            setTextColor(navy)
+            background = shape(Color.WHITE, 24)
+            setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
+        }
+        header.addView(bell, LinearLayout.LayoutParams(dp(44), dp(44)))
+        page.addView(header)
 
-        val accountCard = LinearLayout(this).apply {
+        // Balance card: never display a fabricated or live-looking amount.
+        val balance = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(18))
-            background = shape(Color.WHITE, 22)
-            elevation = dp(3).toFloat()
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR, intArrayOf(navy2, navy, Color.rgb(28, 35, 84))
+            ).apply { cornerRadius = dp(24).toFloat() }
+            elevation = dp(4).toFloat()
+            setOnClickListener { showSandboxWallet() }
         }
-        accountCard.addView(text("BILPAY ACCOUNT", 10f, muted, true))
-        accountCard.addView(text("আপনার অ্যাকাউন্ট নিরাপদে ব্যবহার করুন", 17f, dark, true).apply {
-            setPadding(0, dp(8), 0, dp(4))
+        val balanceTop = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        balanceTop.addView(text("Total Balance", 12f, Color.rgb(206, 214, 245), true))
+        balanceTop.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        balanceTop.addView(text("পরীক্ষামূলক", 9f, Color.WHITE, true).apply {
+            setPadding(dp(9), dp(5), dp(9), dp(5))
+            background = shape(Color.rgb(92, 101, 163), 20)
         })
-        accountCard.addView(text("প্রোফাইল থেকে নিবন্ধন বা লগইন করুন। বাস্তব ওয়ালেট চালুর আগে কোনো কাল্পনিক ব্যালেন্স দেখানো হবে না।", 11f, muted))
-        page.addView(accountCard, LinearLayout.LayoutParams(-1, -2))
-        val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
-        page.addView(quickTitle)
-
-        val quick = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        listOf("●" to "প্রোফাইল", "▣" to "সেবা", "◷" to "হিসাব", "?" to "সাপোর্ট").forEach { pair ->
-            val cell = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = Gravity.CENTER
-                setPadding(dp(3), dp(10), dp(3), dp(10))
-                background = shape(Color.WHITE, 17)
-                elevation = dp(2).toFloat()
-                setOnClickListener { action(pair.second) }
-            }
-            cell.addView(TextView(this).apply {
-                text = pair.first
-                textSize = 23f
-                gravity = Gravity.CENTER
-                setTextColor(accent)
-                typeface = Typeface.DEFAULT_BOLD
-            })
-            cell.addView(text(pair.second, 10f, ink, true).apply { gravity = Gravity.CENTER; setPadding(0, dp(5), 0, 0) })
-            quick.addView(cell, LinearLayout.LayoutParams(0, dp(78), 1f).apply { marginEnd = dp(8) })
-        }
-        page.addView(quick)
-
-        section(page, "বিল পেমেন্ট", "প্রয়োজনীয় সব বিল সহজে পরিশোধ করুন")
-        grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
-
-        section(page, "মোবাইল ফিন্যান্স", "পরীক্ষামূলক Send Money এবং আসন্ন আর্থিক সেবা")
-        grid(page, listOf("💸\nসেন্ড মানি", "➕\nক্যাশ ইন", "↗\nক্যাশ আউট", "⇄\nট্রান্সফার"))
-        val financeNotice = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(15), dp(16), dp(15))
-            background = shape(Color.WHITE, 17)
-            elevation = dp(2).toFloat()
-        }
-        financeNotice.addView(text("মোবাইল ব্যাংকিং সেবা প্রস্তুত হচ্ছে", 13f, ink, true))
-        financeNotice.addView(text("bKash, Nagad, Rocket ও Upay-এর অনুমোদিত API/চুক্তি এখনো যুক্ত হয়নি। অনুমোদন ও অ্যাডমিনের দৃশ্যমানতা চালু হলে সেবাগুলো এখানে দেখাবে।", 10f, soft).apply {
-            setPadding(0, dp(6), 0, 0)
-        })
-        page.addView(financeNotice)
-
-        val sandboxCard = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(14), dp(16), dp(14))
-            background = shape(Color.rgb(255, 248, 225), 17)
-            elevation = dp(1).toFloat()
-            setOnClickListener { action("পরীক্ষামূলক ওয়ালেট") }
-        }
-        sandboxCard.addView(text("🧪  Sandbox Wallet • পরীক্ষামূলক", 13f, ink, true))
-        sandboxCard.addView(text("Staging চালু থাকলে ফি ছাড়া Send Money ও পরীক্ষামূলক ব্যালেন্স দেখা যাবে। বাস্তব টাকা নয়।", 10f, muted).apply { setPadding(0, dp(5), 0, 0) })
-        page.addView(sandboxCard, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(14) })
-
-        val safety = LinearLayout(this).apply {
+        balance.addView(balanceTop)
+        val balanceBottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(15), dp(14), dp(15), dp(14))
-            background = shape(Color.rgb(231, 243, 237), 17)
+            setPadding(0, dp(12), 0, 0)
         }
-        safety.addView(text("🔒", 21f, accent))
-        val safetyCopy = LinearLayout(this).apply {
+        balanceBottom.addView(text("৳  • • • • • •", 25f, Color.WHITE, true))
+        balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        balanceBottom.addView(text("◉  Tap for balance", 11f, Color.WHITE, true).apply {
+            setPadding(dp(11), dp(9), dp(11), dp(9))
+            background = shape(Color.rgb(78, 89, 151), 22)
+        })
+        balance.addView(balanceBottom)
+        balance.addView(text("দেখতে চাপ দিন • Sandbox Wallet • বাস্তব টাকা নয়", 9f, Color.rgb(210, 216, 244)).apply {
+            setPadding(0, dp(10), 0, 0)
+        })
+        page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+
+        // 4-column quick service grid, following the supplied reference layout.
+        val services = listOf(
+            "👛" to "সেন্ড মানি", "📱" to "মোবাইল রিচার্জ", "🛍" to "পেমেন্ট", "⇄" to "ফান্ড ট্রান্সফার",
+            "➕" to "অ্যাড মানি", "🧾" to "বিল পে", "📘" to "শিক্ষা ফি", "🏛" to "সরকারি ফি",
+            "👥" to "সেবা", "◷" to "হিসাব", "🤝" to "সহায়তা", "▦" to "আরও সেবা"
+        )
+        for (offset in services.indices step 4) {
+            val serviceRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            for (i in offset until minOf(offset + 4, services.size)) {
+                val (symbol, label) = services[i]
+                val tile = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    gravity = Gravity.CENTER
+                    setPadding(dp(3), dp(10), dp(3), dp(9))
+                    setOnClickListener {
+                        when (label) {
+                            "পেমেন্ট", "বিল পে" -> action("বিদ্যুৎ")
+                            "ফান্ড ট্রান্সফার", "সেন্ড মানি" -> action("সেন্ড মানি")
+                            "অ্যাড মানি" -> action("অ্যাড মানি")
+                            "মোবাইল রিচার্জ" -> action("মোবাইল রিচার্জ")
+                            "শিক্ষা ফি" -> action("শিক্ষা ফি")
+                            "সরকারি ফি" -> action("সরকারি ফি")
+                            else -> action(label)
+                        }
+                    }
+                }
+                val iconBox = TextView(this).apply {
+                    text = symbol
+                    textSize = 25f
+                    gravity = Gravity.CENTER
+                    background = shape(Color.WHITE, 18)
+                }
+                tile.addView(iconBox, LinearLayout.LayoutParams(dp(62), dp(62)))
+                tile.addView(text(label, 9.5f, ink, true).apply {
+                    gravity = Gravity.CENTER
+                    maxLines = 2
+                    setPadding(0, dp(7), 0, 0)
+                }, LinearLayout.LayoutParams(-1, dp(34)))
+                serviceRow.addView(tile, LinearLayout.LayoutParams(0, dp(112), 1f))
+            }
+            page.addView(serviceRow)
+        }
+
+        // Promotional banner (informational only; no fake offer is advertised).
+        val promo = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), 0, 0, 0)
-            addView(text("নিরাপত্তা সবার আগে", 12f, ink, true))
-            addView(text("অনুমোদিত API যুক্ত না হওয়া পর্যন্ত বাস্তব লেনদেন বন্ধ।", 10f, soft))
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(20), dp(17), dp(20), dp(17))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(Color.rgb(42, 52, 125), Color.rgb(75, 91, 177), Color.rgb(32, 42, 105))
+            ).apply { cornerRadius = dp(20).toFloat() }
+            setOnClickListener { showInfo("BPay Offers", "অফার ও ক্যাম্পেইন অনুমোদিতভাবে চালু হলে এখানে দেখানো হবে।") }
         }
-        safety.addView(safetyCopy)
-        page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
-        apiStatus = text("অ্যাকাউন্ট প্রস্তুত • আর্থিক সেবা API সংযুক্তির অপেক্ষায়", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
+        promo.addView(text("BPay • পেমেন্ট এখন আরও সহজ", 18f, Color.WHITE, true))
+        promo.addView(text("আপনার প্রয়োজনীয় সেবা—এক জায়গায়", 11f, Color.rgb(225, 229, 255)).apply { setPadding(0, dp(5), 0, 0) })
+        page.addView(promo, LinearLayout.LayoutParams(-1, dp(104)).apply {
+            topMargin = dp(10); bottomMargin = dp(14)
+        })
+
+        val rewards = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        listOf("％" to "Promo Code" to "অফার চালু হলে এখানে দেখাবে",
+               "♛" to "Reward Point" to "রিওয়ার্ড প্রোগ্রাম আসছে").forEach { entry ->
+            val (pair, subtitle) = entry
+            val (symbol, title) = pair
+            val card = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(14), dp(13), dp(10), dp(13))
+                background = shape(Color.WHITE, 18)
+                elevation = dp(1).toFloat()
+                addView(text(symbol, 22f, red, true))
+                addView(text(title, 13f, ink, true).apply { setPadding(0, dp(6), 0, dp(2)) })
+                addView(text(subtitle, 9f, soft))
+            }
+            rewards.addView(card, LinearLayout.LayoutParams(0, dp(112), 1f).apply {
+                marginEnd = dp(7)
+            })
+        }
+        page.addView(rewards)
+        val note = text("🔒  বাস্তব আর্থিক লেনদেন অনুমোদিত ব্যাংক/API সংযুক্তির পর চালু হবে।", 10f, soft)
+        note.setPadding(dp(4), dp(18), dp(4), dp(8))
+        page.addView(note)
+        apiStatus = text("API: সংযোগ যাচাই হচ্ছে…", 9f, soft).apply { setPadding(dp(4), dp(4), dp(4), 0) }
         page.addView(apiStatus)
         page.addView(text("BPay Android v${BuildConfig.VERSION_NAME}", 9f, soft).apply {
             gravity = Gravity.CENTER
@@ -846,23 +865,28 @@ class MainActivity : Activity() {
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
         val nav = LinearLayout(this).apply {
             gravity = Gravity.CENTER
-            setPadding(dp(8), dp(8), dp(8), dp(8))
-            setBackgroundColor(Color.WHITE)
-            elevation = dp(12).toFloat()
+            setPadding(dp(5), dp(7), dp(5), dp(7))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(navy, Color.rgb(39, 48, 117))
+            ).apply { cornerRadii = floatArrayOf(dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), 0f, 0f, 0f, 0f) }
+            elevation = dp(10).toFloat()
         }
-        listOf("⌂" to "হোম", "▣" to "সেবা", "◷" to "হিসাব", "●" to "প্রোফাইল").forEachIndexed { index, pair ->
+        listOf("⌂" to "হোম", "♧" to "অফার", "▦" to "QR", "⌕" to "সার্চ", "☷" to "আরও").forEachIndexed { index, pair ->
             val item = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
-                setOnClickListener { action(pair.second) }
+                setOnClickListener {
+                    when (pair.second) {
+                        "হোম" -> scroll.smoothScrollTo(0, 0)
+                        "অফার" -> showInfo("BPay Offers", "অফার সুবিধা চালুর প্রস্তুতি চলছে।")
+                        "QR" -> showInfo("QR Payment", "QR পেমেন্ট অনুমোদিত মার্চেন্ট API যুক্ত হলে চালু হবে।")
+                        "সার্চ" -> showServices()
+                        else -> showServices()
+                    }
+                }
             }
-            item.addView(TextView(this).apply {
-                text = pair.first
-                textSize = 20f
-                gravity = Gravity.CENTER
-                setTextColor(if (index == 0) accent else soft)
-            })
-            item.addView(text(pair.second, 10f, if (index == 0) accent else soft, index == 0).apply { gravity = Gravity.CENTER })
+            item.addView(text(pair.first, 22f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+            item.addView(text(pair.second, 9f, Color.WHITE, index == 0).apply { gravity = Gravity.CENTER })
             nav.addView(item, LinearLayout.LayoutParams(0, dp(48), 1f))
         }
         root.addView(nav)
