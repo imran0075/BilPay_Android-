@@ -46,7 +46,8 @@ class MainActivity : Activity() {
                 lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
                 lower.contains("শিক্ষা") || lower.contains("হাসপাতাল") || lower.contains("সরকারি") ||
                 lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
-            lower.contains("সেন্ড মানি") || lower.contains("ট্রান্সফার") -> showSandboxWallet()
+            lower.contains("সেন্ড মানি") -> openSandboxTransferForm(false)
+            lower.contains("ফান্ড ট্রান্সফার") -> openSandboxTransferForm(true)
             lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") || lower.contains("qr") ||
                 lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
                 showInfo("সেবা চালুর অপেক্ষায়", "Cash In, Cash Out ও বাহ্যিক ট্রান্সফার এখনো চালু নয়। অনুমোদিত আর্থিক অংশীদার API ও চুক্তি যুক্ত হলে বাস্তব সেবা চালু হবে।")
@@ -666,17 +667,34 @@ class MainActivity : Activity() {
         dialog.show()
     }
 
-    private fun showSandboxTransfer(token: String) {
+    private fun openSandboxTransferForm(isFundTransfer: Boolean) {
+        if (!BuildConfig.API_BASE_URL.contains("sandbox", ignoreCase = true)) {
+            showInfo(
+                if (isFundTransfer) "Fund Transfer এখনো চালু নয়" else "Send Money এখনো চালু নয়",
+                "বাস্তব আর্থিক লেনদেন চালুর জন্য অনুমোদিত আর্থিক অংশীদার, লাইভ লেজার ও প্রয়োজনীয় নিয়ন্ত্রক অনুমোদন এখনো যুক্ত হয়নি।"
+            )
+            return
+        }
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "Send Money বা Fund Transfer ব্যবহার করতে আগে আপনার BPay Sandbox অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        showSandboxTransfer(token, isFundTransfer)
+    }
+
+    private fun showSandboxTransfer(token: String, isFundTransfer: Boolean = false) {
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
         val phone = EditText(this).apply { hint = "প্রাপকের BPay নম্বর"; inputType = android.text.InputType.TYPE_CLASS_PHONE }
         val amount = EditText(this).apply { hint = "পরিমাণ (৳)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL }
         form.addView(phone); form.addView(amount)
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle("Sandbox Send Money")
-            .setMessage("ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স স্থানান্তর হবে।")
+            .setTitle(if (isFundTransfer) "Sandbox Fund Transfer" else "Sandbox Send Money")
+            .setMessage(if (isFundTransfer) "BPay অ্যাকাউন্টে ফান্ড ট্রান্সফার • ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স।" else "BPay নম্বরে Send Money • ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স স্থানান্তর হবে।")
             .setView(form)
             .setNegativeButton("বাতিল", null)
-            .setPositiveButton("পাঠান", null)
+            .setPositiveButton(if (isFundTransfer) "ফান্ড ট্রান্সফার করুন" else "টাকা পাঠান", null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -698,7 +716,7 @@ class MainActivity : Activity() {
                         val json = JSONObject(body)
                         if (code in 200..299) {
                             success = true
-                            message = "পরীক্ষামূলক Send Money সফল।\nপ্রাপক পেয়েছেন: ৳" + json.optString("recipient_credit") + "\nফি: ৳0.00\nবাস্তব টাকা স্থানান্তর হয়নি।"
+                            message = (if (isFundTransfer) "পরীক্ষামূলক Fund Transfer সফল।\nপ্রাপক পেয়েছেন: ৳" else "পরীক্ষামূলক Send Money সফল।\nপ্রাপক পেয়েছেন: ৳") + json.optString("recipient_credit") + "\nফি: ৳0.00\nবাস্তব টাকা স্থানান্তর হয়নি।"
                         } else {
                             val detail = json.opt("detail")
                             message = if (detail is String) detail else if (detail is JSONObject) detail.optString("message", "HTTP $code") else "অনুরোধ সম্পন্ন হয়নি (HTTP $code)।"
@@ -925,7 +943,8 @@ class MainActivity : Activity() {
                     setOnClickListener {
                         when (label) {
                             "পেমেন্ট", "বিল পে" -> action("বিদ্যুৎ")
-                            "ফান্ড ট্রান্সফার", "সেন্ড মানি" -> action("সেন্ড মানি")
+                            "ফান্ড ট্রান্সফার" -> action("ফান্ড ট্রান্সফার")
+                            "সেন্ড মানি" -> action("সেন্ড মানি")
                             "অ্যাড মানি" -> action("অ্যাড মানি")
                             "মোবাইল রিচার্জ" -> action("মোবাইল রিচার্জ")
                             "শিক্ষা ফি" -> action("শিক্ষা ফি")
