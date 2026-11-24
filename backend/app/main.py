@@ -408,9 +408,25 @@ def sandbox_history(user: User = Depends(current_user), db: Session = Depends(ge
     rows = db.scalars(select(SandboxTransfer).where(
         (SandboxTransfer.sender_id == user.id) | (SandboxTransfer.recipient_id == user.id)
     ).order_by(SandboxTransfer.created_at.desc()).limit(limit)).all()
-    return {"items":[{"transaction_id":r.transaction_id, "amount":str(r.amount), "fee":"0.00",
-                      "direction":"OUT" if r.sender_id == user.id else "IN", "status":r.status,
-                      "mode":"SANDBOX", "real_money":False} for r in rows]}
+    items = []
+    for row in rows:
+        outgoing = row.sender_id == user.id
+        counterparty = db.get(User, row.recipient_id if outgoing else row.sender_id)
+        transfer_type = "FUND_TRANSFER" if row.idempotency_key.startswith("FUND_TRANSFER-") else "SEND_MONEY"
+        items.append({
+            "transaction_id": row.transaction_id,
+            "amount": str(row.amount),
+            "fee": "0.00",
+            "direction": "OUT" if outgoing else "IN",
+            "recipient_phone": counterparty.phone if outgoing and counterparty else "",
+            "sender_phone": counterparty.phone if not outgoing and counterparty else "",
+            "transaction_type": transfer_type,
+            "status": row.status,
+            "created_at": row.created_at.isoformat() if row.created_at else "",
+            "mode": "SANDBOX",
+            "real_money": False
+        })
+    return {"items": items}
 
 
 @app.get("/api/v1/wallet")
