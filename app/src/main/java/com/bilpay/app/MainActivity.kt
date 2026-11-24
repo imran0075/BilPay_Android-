@@ -460,33 +460,85 @@ class MainActivity : Activity() {
             showAuthForm(false)
             return
         }
-        val progress = android.app.ProgressDialog(this).apply { setMessage("Sandbox Wallet যাচাই হচ্ছে…"); setCancelable(false); show() }
+
+        // Keep the wallet interaction in one clear, branded dialog while the server is checked.
+        val loadingPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(28), dp(28), dp(28), dp(28))
+            addView(ProgressBar(this@MainActivity).apply { isIndeterminate = true })
+            addView(text("নিরাপদে Sandbox Wallet যাচাই হচ্ছে", 14f, dark, true).apply {
+                gravity = Gravity.CENTER
+                setPadding(0, dp(16), 0, dp(6))
+            })
+            addView(text("সার্ভারের নিশ্চিত ব্যালেন্স না পাওয়া পর্যন্ত কোনো অঙ্ক দেখানো হবে না।", 11f, muted).apply {
+                gravity = Gravity.CENTER
+            })
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("BPay Sandbox Wallet")
+            .setView(loadingPanel)
+            .setPositiveButton("আবার চেষ্টা", null)
+            .setNegativeButton("বন্ধ", null)
+            .create()
+        dialog.setCancelable(false)
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).visibility = View.GONE
+        }
+        dialog.show()
+
         Thread {
             var balance = ""
             var isAdmin = false
             var error = ""
             try {
                 val (statusCode, statusBody) = sandboxRequest("GET", "/api/v1/sandbox/status", token)
-                if (statusCode !in 200..299) error = "Sandbox সার্ভার যাচাই করা যায়নি (HTTP $statusCode)।"
-                else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) error = "Sandbox Wallet এখনো Staging সার্ভারে চালু হয়নি। এটি বাস্তব ওয়ালেট নয়; চালু হলে এখানে পরীক্ষামূলক ব্যালেন্স দেখাবে।"
-                else {
+                if (statusCode !in 200..299) error = sandboxHttpMessage(statusCode, "Sandbox সার্ভার যাচাই")
+                else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) {
+                    error = "Sandbox Wallet বর্তমানে চালু নেই। এটি বাস্তব ওয়ালেট নয়।"
+                } else {
                     val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
-                    if (profileCode !in 200..299) error = "অ্যাকাউন্টের Admin অবস্থা যাচাই করা যায়নি (HTTP $profileCode)।"
+                    if (profileCode !in 200..299) error = sandboxHttpMessage(profileCode, "অ্যাকাউন্ট যাচাই")
                     else {
                         isAdmin = JSONObject(profileBody).optBoolean("is_admin", false)
                         val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
-                        if (walletCode in 200..299) balance = JSONObject(walletBody).optString("balance", "0.00")
-                        else error = "Sandbox ব্যালেন্স পাওয়া যায়নি (HTTP $walletCode)।"
-
+                        if (walletCode in 200..299) {
+                            val wallet = JSONObject(walletBody)
+                            balance = wallet.optString("balance", "")
+                            if (balance.isBlank()) error = "সার্ভার ব্যালেন্সের তথ্য দেয়নি। আবার চেষ্টা করুন।"
+                        } else error = sandboxHttpMessage(walletCode, "Sandbox ব্যালেন্স আনা")
                     }
                 }
-            } catch (e: Exception) { error = "সার্ভারে সংযোগ করা যায়নি: " + (e.localizedMessage ?: "অজানা সমস্যা") }
+            } catch (e: Exception) {
+                error = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট পরীক্ষা করে আবার চেষ্টা করুন।"
+            }
             runOnUiThread {
-                progress.dismiss()
-                if (error.isNotBlank()) showInfo("Sandbox Wallet", error)
-                else renderSandboxWallet(token, balance, isAdmin)
+                if (!dialog.isShowing) return@runOnUiThread
+                if (error.isNotBlank()) {
+                    loadingPanel.removeAllViews()
+                    loadingPanel.setPadding(dp(20), dp(18), dp(20), dp(12))
+                    loadingPanel.addView(text("⚠  ব্যালেন্স যাচাই করা যায়নি", 15f, dark, true))
+                    loadingPanel.addView(text(error, 12f, muted).apply { setPadding(0, dp(8), 0, dp(8)) })
+                    loadingPanel.addView(text("কোনো ব্যালেন্স অনুমান করে দেখানো হয়নি।", 10f, muted))
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).visibility = View.VISIBLE
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        dialog.dismiss()
+                        showSandboxWallet()
+                    }
+                } else {
+                    dialog.dismiss()
+                    renderSandboxWallet(token, balance, isAdmin)
+                }
             }
         }.start()
+    }
+
+    private fun sandboxHttpMessage(code: Int, action: String): String = when (code) {
+        401 -> "লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
+        403 -> "এই অ্যাকাউন্টের Sandbox Wallet ব্যবহারের অনুমতি নেই।"
+        404 -> "Sandbox Wallet সেবা পাওয়া যায়নি। পরে আবার চেষ্টা করুন।"
+        in 500..599 -> "BPay সার্ভারে সাময়িক সমস্যা হচ্ছে। কিছুক্ষণ পর আবার চেষ্টা করুন।"
+        else -> "$action সম্পন্ন হয়নি (HTTP $code)। আবার চেষ্টা করুন।"
     }
 
     private fun renderSandboxWallet(token: String, balance: String, isAdmin: Boolean) {
@@ -494,25 +546,50 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(12), dp(20), dp(4))
         }
-        panel.addView(text("পরীক্ষামূলক ব্যালেন্স", 12f, muted, true))
-        panel.addView(text("৳ $balance", 30f, dark, true).apply { setPadding(0, dp(6), 0, dp(4)) })
-        panel.addView(text("এটি Sandbox-এর কাল্পনিক অর্থ। বাস্তবে জমা, উত্তোলন বা ব্যবহার করা যাবে না।", 11f, muted))
-        panel.addView(text(if (isAdmin) "Admin অনুমতি: সক্রিয় ✓" else "Admin অনুমতি: সক্রিয় নয়", 12f, muted, true).apply { setPadding(0, dp(10), 0, 0) })
-        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(16), 0, 0) }
-        val send = Button(this).apply { text = "ফ্রি Send Money"; setOnClickListener { showSandboxTransfer(token) } }
-        val history = Button(this).apply { text = "ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
+        val balanceCard = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                intArrayOf(Color.rgb(48, 61, 133), Color.rgb(34, 43, 105))
+            ).apply { cornerRadius = dp(18).toFloat() }
+        }
+        balanceCard.addView(text("পরীক্ষামূলক ব্যালেন্স", 12f, Color.rgb(220, 226, 255), true))
+        balanceCard.addView(text("৳ $balance", 29f, Color.WHITE, true).apply {
+            setPadding(0, dp(7), 0, dp(2))
+        })
+        balanceCard.addView(text("সার্ভার থেকে যাচাই করা • Sandbox", 10f, Color.rgb(220, 226, 255)))
+        panel.addView(balanceCard)
+        panel.addView(text("এটি কাল্পনিক পরীক্ষামূলক অর্থ। বাস্তবে জমা, উত্তোলন বা ব্যবহার করা যাবে না।", 11f, muted).apply {
+            setPadding(0, dp(12), 0, dp(2))
+        })
+        panel.addView(text(if (isAdmin) "Admin অনুমতি: সক্রিয় ✓" else "Admin অনুমতি: সক্রিয় নয়", 12f, muted, true).apply {
+            setPadding(0, dp(8), 0, 0)
+        })
+        val actions = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(14), 0, 0) }
+        val send = Button(this).apply { text = "Sandbox Send Money"; setOnClickListener { showSandboxTransfer(token) } }
+        val history = Button(this).apply { text = "লেনদেনের ইতিহাস"; setOnClickListener { showSandboxHistory(token) } }
         actions.addView(send, LinearLayout.LayoutParams(0, dp(48), 1f).apply { marginEnd = dp(8) })
         actions.addView(history, LinearLayout.LayoutParams(0, dp(48), 1f))
         panel.addView(actions)
+        val refresh = Button(this).apply {
+            text = "↻  ব্যালেন্স আবার যাচাই"
+            setOnClickListener { showSandboxWallet() }
+        }
+        panel.addView(refresh, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
         if (isAdmin) {
             val adminGrant = Button(this).apply {
                 text = "Admin: Sandbox ব্যালেন্স যোগ"
                 setOnClickListener { requestSandboxAdminGrant(token) }
             }
-            panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
+            panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(8) })
             panel.addView(text("একবারে সর্বোচ্চ ৳১০,০০,০০০ • শুধু নিজের Admin Sandbox Wallet", 10f, muted).apply { setPadding(0, dp(5), 0, 0) })
         }
-        android.app.AlertDialog.Builder(this).setTitle("BPay Sandbox Wallet").setView(panel).setPositiveButton("বন্ধ", null).show()
+        android.app.AlertDialog.Builder(this)
+            .setTitle("BPay Sandbox Wallet")
+            .setView(panel)
+            .setPositiveButton("বন্ধ", null)
+            .show()
     }
 
     private fun requestSandboxAdminGrant(token: String) {
