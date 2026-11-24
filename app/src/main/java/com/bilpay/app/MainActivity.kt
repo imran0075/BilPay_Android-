@@ -994,37 +994,91 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(2), dp(3), dp(2), dp(14))
         }
-        val avatar = TextView(this).apply {
-            text = "B"
-            textSize = 20f
+        val accountAvatar = TextView(this).apply {
+            text = "U"
+            textSize = 18f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
+                setColor(navy)
+                setStroke(dp(2), Color.rgb(224, 174, 61))
+            }
+        }
+        header.addView(accountAvatar, LinearLayout.LayoutParams(dp(44), dp(44)))
+        val identity = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(10), 0, 0, 0)
+        }
+        val accountNameView = text("অ্যাকাউন্ট", 14f, ink, true).apply { maxLines = 1 }
+        identity.addView(accountNameView)
+        identity.addView(text("BPay Account", 9f, soft))
+        header.addView(identity)
+        header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+
+        // Brand mark and menu share one compact circular control on the right.
+        val brandMenu = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
                 setColor(red)
                 setStroke(dp(2), Color.rgb(244, 211, 151))
             }
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                android.app.AlertDialog.Builder(this@MainActivity)
+                    .setTitle("BPay মেনু")
+                    .setItems(arrayOf("প্রোফাইল", "ইনবক্স • লেনদেন", "সকল সেবা", "সাপোর্ট")) { _, which ->
+                        when (which) {
+                            0 -> showProfile()
+                            1 -> showInbox()
+                            2 -> showServices()
+                            else -> showSupport()
+                        }
+                    }
+                    .setNegativeButton("বন্ধ", null)
+                    .show()
+            }
         }
-        header.addView(avatar, LinearLayout.LayoutParams(dp(46), dp(46)))
-        val identity = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(10), 0, 0, 0)
-        }
-        identity.addView(text("BPay", 19f, ink, true))
-        identity.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true))
-        header.addView(identity)
-        header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        val bell = TextView(this).apply {
-            text = "♧"
-            textSize = 25f
-            gravity = Gravity.CENTER
-            setTextColor(navy)
-            background = shape(Color.WHITE, 24)
-            setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
-        }
-        header.addView(bell, LinearLayout.LayoutParams(dp(44), dp(44)))
+        brandMenu.addView(text("B", 21f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+        val menuDivider = View(this).apply { setBackgroundColor(Color.rgb(244, 211, 151)) }
+        brandMenu.addView(menuDivider, LinearLayout.LayoutParams(dp(22), dp(1)))
+        brandMenu.addView(text("≡", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
+        header.addView(brandMenu, LinearLayout.LayoutParams(dp(48), dp(48)))
         page.addView(header)
+
+        // Load the signed-in account holder name from the authenticated profile.
+        val identityToken = securePrefs().getString("access_token", null)
+        if (!identityToken.isNullOrBlank()) {
+            Thread {
+                try {
+                    val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/auth/me").openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 10000
+                        readTimeout = 10000
+                        setRequestProperty("Authorization", "Bearer $identityToken")
+                        setRequestProperty("Accept", "application/json")
+                    }
+                    val code = connection.responseCode
+                    val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    connection.disconnect()
+                    if (code in 200..299) {
+                        val fullName = JSONObject(body).optString("full_name").trim()
+                        if (fullName.isNotBlank()) runOnUiThread {
+                            if (securePrefs().getString("access_token", null) == identityToken) {
+                                accountNameView.text = fullName
+                                accountAvatar.text = fullName.first().uppercaseChar().toString()
+                            }
+                        }
+                    }
+                } catch (_: Exception) { }
+            }.start()
+        }
 
         // Balance card: never display a fabricated or live-looking amount.
         val balance = LinearLayout(this).apply {
