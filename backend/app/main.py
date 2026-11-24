@@ -1,4 +1,5 @@
 import os
+import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
@@ -57,6 +58,40 @@ class Transaction(Base):
     mode: Mapped[str] = mapped_column(String(20), default="TEST_ONLY")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     user: Mapped[User] = relationship(back_populates="transactions")
+
+
+class SandboxWallet(Base):
+    __tablename__ = "sandbox_wallets"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    balance: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
+    currency: Mapped[str] = mapped_column(String(3), default="BDT")
+    mode: Mapped[str] = mapped_column(String(20), default="SANDBOX")
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+class SandboxLedgerEntry(Base):
+    __tablename__ = "sandbox_ledger_entries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entry_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(String(40), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    entry_type: Mapped[str] = mapped_column(String(20))
+    mode: Mapped[str] = mapped_column(String(20), default="SANDBOX")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+class SandboxTransfer(Base):
+    __tablename__ = "sandbox_transfers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    sender_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    recipient_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
+    status: Mapped[str] = mapped_column(String(20), default="POSTED")
+    mode: Mapped[str] = mapped_column(String(20), default="SANDBOX")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
@@ -137,7 +172,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="BilPay API", description="Shared API foundation for BilPay Android, web and admin clients.", version="0.3.0", lifespan=lifespan)
 origins = os.getenv("BILPAY_ALLOWED_ORIGINS", "https://bilpay-official.onrender.com,https://bilpay-official-site.onrender.com,https://bilpay.com.bd,https://www.bilpay.com.bd")
-app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in origins.split(",") if x.strip()], allow_credentials=False, allow_methods=["GET","POST","PUT"], allow_headers=["Content-Type","Authorization"])
+app.add_middleware(CORSMiddleware, allow_origins=[x.strip() for x in origins.split(",") if x.strip()], allow_credentials=False, allow_methods=["GET","POST","PUT"], allow_headers=["Content-Type","Authorization","Idempotency-Key"])
 
 SERVICES = [
  {"id":"electricity","name":"বিদ্যুৎ বিল","category":"bill","enabled":False},
@@ -181,6 +216,18 @@ class PaymentIntentRequest(BaseModel):
     customer_reference: str = Field(min_length=3, max_length=80)
     customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     currency: Literal["BDT"] = "BDT"
+
+class SandboxGrantRequest(BaseModel):
+    user_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+class SandboxTransferRequest(BaseModel):
+    recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+
+def sandbox_enabled():
+    if os.getenv("BILPAY_SANDBOX_LEDGER_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}:
+        raise HTTPException(status_code=503, detail={"code":"SANDBOX_DISABLED","message":"Sandbox wallet এখনো চালু করা হয়নি।"})
+
 class ServiceVisibilityRequest(BaseModel):
     visible: bool
 
@@ -240,6 +287,105 @@ def change_password(payload: PasswordChangeRequest, user: User = Depends(current
     user.password_hash = password_hasher.hash(payload.new_password)
     db.commit()
     return {"ok": True, "message": "পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।"}
+
+
+@app.get("/api/v1/sandbox/status")
+def sandbox_status():
+    enabled = os.getenv("BILPAY_SANDBOX_LEDGER_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    return {"sandbox_enabled": enabled, "live_wallet_enabled": False, "live_transactions_enabled": False,
+            "real_money": False, "redeemable": False, "message": "Sandbox test balance বাস্তব টাকা নয়; উত্তোলন বা redeem করা যাবে না।"}
+
+@app.get("/api/v1/sandbox/wallet")
+def sandbox_wallet(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    sandbox_enabled()
+    wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == user.id, SandboxWallet.mode == "SANDBOX"))
+    balance = wallet.balance if wallet else Decimal("0.00")
+    return {"balance": str(balance), "currency":"BDT", "mode":"SANDBOX", "real_money":False, "redeemable":False}
+
+@app.post("/api/v1/admin/sandbox/grant")
+def sandbox_grant(payload: SandboxGrantRequest, admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    sandbox_enabled()
+    target = db.scalar(select(User).where(User.phone == payload.user_phone))
+    if target is None:
+        raise HTTPException(status_code=404, detail="পরীক্ষার অ্যাকাউন্ট পাওয়া যায়নি।")
+    db.commit()
+    with db.begin():
+        wallet = db.scalar(select(SandboxWallet).where(SandboxWallet.user_id == target.id).with_for_update())
+        if wallet is None:
+            wallet = SandboxWallet(user_id=target.id, balance=Decimal("0.00"), mode="SANDBOX")
+            db.add(wallet)
+            db.flush()
+        txid = "SBX-" + uuid.uuid4().hex[:24].upper()
+        wallet.balance = Decimal(wallet.balance) + payload.amount
+        db.add_all([
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
+                               amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"),
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=admin.id,
+                               amount=-payload.amount, entry_type="TEST_FAUCET_DEBIT", mode="SANDBOX")
+        ])
+        db.add(AdminAuditLog(admin_user_id=admin.id, action="sandbox_test_credit", target=target.phone,
+                             details=f"{payload.amount} BDT non-redeemable sandbox credit"))
+    return {"transaction_id":txid, "amount":str(payload.amount), "mode":"SANDBOX",
+            "real_money":False, "redeemable":False, "message":"শুধু পরীক্ষার জন্য কাল্পনিক ব্যালেন্স যোগ হয়েছে; বাস্তব টাকা নয়।"}
+
+@app.post("/api/v1/sandbox/transfers/internal")
+def sandbox_internal_transfer(payload: SandboxTransferRequest, idempotency_key: str = Header(..., alias="Idempotency-Key", min_length=8, max_length=100),
+                              user: User = Depends(current_user), db: Session = Depends(get_db)):
+    sandbox_enabled()
+    recipient = db.scalar(select(User).where(User.phone == payload.recipient_phone))
+    if recipient is None:
+        raise HTTPException(status_code=404, detail="প্রাপকের BilPay অ্যাকাউন্ট পাওয়া যায়নি।")
+    if recipient.id == user.id:
+        raise HTTPException(status_code=400, detail="নিজের অ্যাকাউন্টে Send Money করা যাবে না।")
+    existing = db.scalar(select(SandboxTransfer).where(SandboxTransfer.idempotency_key == idempotency_key))
+    if existing:
+        if existing.sender_id != user.id or existing.recipient_id != recipient.id or existing.amount != payload.amount:
+            raise HTTPException(status_code=409, detail="এই Idempotency-Key আগে অন্য অনুরোধে ব্যবহৃত হয়েছে।")
+        return {"transaction_id":existing.transaction_id, "amount":str(existing.amount), "fee":"0.00",
+                "recipient_credit":str(existing.amount), "status":existing.status, "mode":"SANDBOX",
+                "real_money":False, "redeemable":False}
+    db.commit()
+    with db.begin():
+        locked_wallets = db.scalars(select(SandboxWallet).where(
+            SandboxWallet.user_id.in_(sorted([user.id, recipient.id])),
+            SandboxWallet.mode == "SANDBOX"
+        ).order_by(SandboxWallet.user_id).with_for_update()).all()
+        wallet_map = {wallet.user_id: wallet for wallet in locked_wallets}
+        sender_wallet = wallet_map.get(user.id)
+        recipient_wallet = wallet_map.get(recipient.id)
+        if sender_wallet is None or Decimal(sender_wallet.balance) < payload.amount:
+            raise HTTPException(status_code=400, detail="Sandbox ব্যালেন্স পর্যাপ্ত নয়।")
+        if recipient_wallet is None:
+            recipient_wallet = SandboxWallet(user_id=recipient.id, balance=Decimal("0.00"), mode="SANDBOX")
+            db.add(recipient_wallet)
+            db.flush()
+        txid = "SBX-" + uuid.uuid4().hex[:24].upper()
+        sender_wallet.balance = Decimal(sender_wallet.balance) - payload.amount
+        recipient_wallet.balance = Decimal(recipient_wallet.balance) + payload.amount
+        db.add(SandboxTransfer(transaction_id=txid, idempotency_key=idempotency_key, sender_id=user.id,
+                               recipient_id=recipient.id, amount=payload.amount, fee=Decimal("0.00"),
+                               status="POSTED", mode="SANDBOX"))
+        db.add_all([
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=user.id,
+                               amount=-payload.amount, entry_type="TRANSFER_DEBIT", mode="SANDBOX"),
+            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=recipient.id,
+                               amount=payload.amount, entry_type="TRANSFER_CREDIT", mode="SANDBOX")
+        ])
+    return {"transaction_id":txid, "amount":str(payload.amount), "fee":"0.00",
+            "recipient_credit":str(payload.amount), "status":"POSTED", "mode":"SANDBOX",
+            "real_money":False, "redeemable":False, "message":"পরীক্ষামূলক Send Money সফল; কোনো বাস্তব টাকা স্থানান্তর হয়নি।"}
+
+@app.get("/api/v1/sandbox/transactions")
+def sandbox_history(user: User = Depends(current_user), db: Session = Depends(get_db), limit: int = 20):
+    sandbox_enabled()
+    limit = max(1, min(limit, 100))
+    rows = db.scalars(select(SandboxTransfer).where(
+        (SandboxTransfer.sender_id == user.id) | (SandboxTransfer.recipient_id == user.id)
+    ).order_by(SandboxTransfer.created_at.desc()).limit(limit)).all()
+    return {"items":[{"transaction_id":r.transaction_id, "amount":str(r.amount), "fee":"0.00",
+                      "direction":"OUT" if r.sender_id == user.id else "IN", "status":r.status,
+                      "mode":"SANDBOX", "real_money":False} for r in rows]}
+
 
 @app.get("/api/v1/wallet")
 def get_wallet(user:User=Depends(current_user),db:Session=Depends(get_db)):

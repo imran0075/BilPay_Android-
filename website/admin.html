@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#071326">
-<title>BilPay Admin</title>
+<title>BPay Admin</title>
 <style>
 :root{color-scheme:dark;--bg:#071326;--panel:#10213a;--line:#ffffff1c;--gold:#f5c65c;--red:#d30d32;--text:#f6f8fc;--muted:#a9b8cc;--green:#62d9a2}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 90% 0,#193e5c66,transparent 34%),var(--bg);color:var(--text);font:15px/1.6 system-ui,"Noto Sans Bengali",sans-serif}.wrap{width:min(1120px,94%);margin:34px auto}.brand{display:flex;align-items:center;gap:12px;font-size:23px;font-weight:900}.brand img{width:44px;height:44px;object-fit:contain;border-radius:12px}.muted{color:var(--muted)}.panel{background:linear-gradient(145deg,#142945,#0d1c32);border:1px solid var(--line);border-radius:20px;padding:22px;box-shadow:0 20px 70px #0003}.login{max-width:430px;margin:55px auto}.login h1{margin:8px 0}.eyebrow{color:var(--gold);font-size:12px;letter-spacing:1.5px;font-weight:800}label{display:block;margin:15px 0 6px;color:#d6dfeb;font-size:13px}input{width:100%;padding:13px 14px;border-radius:11px;border:1px solid var(--line);background:#08172a;color:white;font:inherit;outline:none}input:focus{border-color:var(--gold)}button{border:0;border-radius:11px;padding:12px 17px;background:linear-gradient(120deg,#ffe39a,#e7b13d);color:#172338;font-weight:850;font:inherit;cursor:pointer}button:disabled{opacity:.55;cursor:wait}.primary{width:100%;margin-top:18px}.notice{font-size:12px;color:var(--muted);margin-top:16px}.error{color:#ff9cae;background:#d30d321c;border:1px solid #d30d3244;padding:10px 12px;border-radius:10px;margin-top:12px;display:none}.hidden{display:none!important}.top{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:24px}.top p{margin:3px 0}.actions{display:flex;gap:8px;flex-wrap:wrap}.secondary{background:#ffffff10;color:var(--text);border:1px solid var(--line)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.tabs button{background:#ffffff0b;color:#dce5f1;border:1px solid var(--line)}.tabs button.active{background:var(--gold);color:#172338;border-color:var(--gold)}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.stat{padding:18px;border:1px solid var(--line);background:#ffffff08;border-radius:15px}.stat small{display:block;color:var(--muted)}.stat strong{font-size:27px;display:block;margin-top:6px}.sectionTitle{margin:20px 0 12px}.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;min-width:680px;font-size:13px}th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--gold);background:#ffffff08}td{color:#dce5f1}tr:last-child td{border-bottom:0}.status{color:var(--green)}.footer{font-size:12px;color:var(--muted);margin:18px 2px}.loading{color:var(--gold)}@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}.wrap{margin:20px auto}.panel{padding:16px}.login{margin:35px auto}}
@@ -12,11 +12,11 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="brand"><img src="/bilpay-logo.svg" alt="BilPay"><span>BilPay <span style="color:var(--gold)">Admin</span></span></div>
+  <div class="brand"><img src="/bilpay-logo.svg" alt="BPay"><span>BPay <span style="color:var(--gold)">Admin</span></span></div>
   <section id="loginPanel" class="panel login">
     <div class="eyebrow">SECURE ADMIN ACCESS</div>
     <h1>অ্যাডমিন লগইন</h1>
-    <p class="muted">আপনার BilPay অ্যাকাউন্ট দিয়ে লগইন করুন। সার্ভারে অনুমোদিত অ্যাডমিন নম্বর ছাড়া ড্যাশবোর্ড খোলা যাবে না।</p>
+    <p class="muted">আপনার BPay অ্যাকাউন্ট দিয়ে লগইন করুন। সার্ভারে অনুমোদিত অ্যাডমিন নম্বর ছাড়া ড্যাশবোর্ড খোলা যাবে না।</p>
     <form id="loginForm">
       <label for="phone">বাংলাদেশি মোবাইল নম্বর</label>
       <input id="phone" name="phone" inputmode="numeric" autocomplete="username" placeholder="01XXXXXXXXX" maxlength="11" required>
@@ -46,13 +46,13 @@
       <div id="tableArea"><p class="loading">তথ্য লোড হচ্ছে…</p></div>
       <div id="dashError" class="error" role="alert"></div>
     </div>
-    <p class="footer">BilPay Technologies • Admin access is restricted and monitored.</p>
+    <p class="footer">BPay Technology • Admin access is restricted and monitored.</p>
   </section>
 </div>
 <script>
 (() => {
   "use strict";
-  const API = "https://bilpay-api-5b57.onrender.com/api/v1";
+  const API = "https://bilpay-sandbox-api-v2.onrender.com/api/v1";
   const $ = (id) => document.getElementById(id);
   let token = sessionStorage.getItem("bilpay_admin_token") || "";
   let activeTab = "users";

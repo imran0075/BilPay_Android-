@@ -1,4 +1,4 @@
-name: Build BilPay Signed Android APK
+name: Build BPay Signed Android APK
 on:
   push:
     branches: [ "main" ]
@@ -29,7 +29,7 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Validate permanent BilPay release key
+      - name: Validate permanent BPay release key
         id: signing
         shell: bash
         env:
@@ -41,7 +41,7 @@ jobs:
           set -euo pipefail
           for name in KEYSTORE_B64 STORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
             if [[ -z "${!name}" ]]; then
-              echo "::error::Missing GitHub Actions secret for ${name}. Check all four BilPay signing secrets."
+              echo "::error::Missing GitHub Actions secret for ${name}. Check all four BPay signing secrets."
               exit 1
             fi
           done
@@ -60,7 +60,7 @@ jobs:
           keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" >/dev/null
           keytool -list -storetype JKS -keystore "$KEYSTORE" -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
           keytool -importkeystore -noprompt -srckeystore "$KEYSTORE" -srcstoretype JKS -srcstorepass "$STORE_PASSWORD" -srcalias "$KEY_ALIAS" -srckeypass "$KEY_PASSWORD" -destkeystore "$RUNNER_TEMP/bilpay-signing/key-check.p12" -deststoretype PKCS12 -deststorepass "temporary-validation-only" -destkeypass "temporary-validation-only" >/dev/null
-          echo "Permanent BilPay keystore, alias, and private-key password are valid."
+          echo "Permanent BPay keystore, alias, and private-key password are valid."
 
       - name: Build signed release APK
         env:
@@ -87,7 +87,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: bilpay-latest
-          name: BilPay latest signed APK
+          name: BPay latest signed APK
           prerelease: true
           files: app/build/outputs/apk/release/app-release.apk
           overwrite_files: true
@@ -108,10 +108,10 @@ jobs:
             git push
           fi
 
-      - name: Upload BilPay permanent signed APK
+      - name: Upload BPay permanent signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: BilPay-Android-Permanent-Signed-APK
+          name: BPay-Android-Permanent-Signed-APK
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
