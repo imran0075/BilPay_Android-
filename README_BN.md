@@ -4,7 +4,7 @@ BPay-এর প্রাথমিক Android demo project।
 
 ## APK তৈরি
 1. GitHub-এর Actions ট্যাব খুলুন।
-2. **Build BPay Android APK** workflow নির্বাচন করুন।
+2. **Build BPay Signed Android APK** workflow নির্বাচন করুন।
 3. Run workflow চাপুন (push হলেই স্বয়ংক্রিয়ভাবেও build হবে)।
 4. সফল হলে workflow run-এর Artifacts থেকে **BPay-Android-APK** ডাউনলোড করুন।
 5. ZIP extract করে APK ইনস্টল করুন।
