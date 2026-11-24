@@ -1144,15 +1144,6 @@ class MainActivity : Activity() {
             })
         }
         page.addView(rewards)
-        val note = text("🔒  বাস্তব আর্থিক লেনদেন অনুমোদিত ব্যাংক/API সংযুক্তির পর চালু হবে।", 10f, soft)
-        note.setPadding(dp(4), dp(18), dp(4), dp(8))
-        page.addView(note)
-        apiStatus = text("API: সংযোগ যাচাই হচ্ছে…", 9f, soft).apply { setPadding(dp(4), dp(4), dp(4), 0) }
-        page.addView(apiStatus)
-        page.addView(text("BPay Android v${BuildConfig.VERSION_NAME}", 9f, soft).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, dp(8), 0, 0)
-        })
 
         scroll.addView(page)
         root.addView(scroll, LinearLayout.LayoutParams(-1, 0, 1f))
