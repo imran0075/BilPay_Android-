@@ -694,7 +694,7 @@ class MainActivity : Activity() {
             .setMessage(if (isFundTransfer) "BPay অ্যাকাউন্টে ফান্ড ট্রান্সফার • ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স।" else "BPay নম্বরে Send Money • ফি ৳০ • শুধু পরীক্ষামূলক ব্যালেন্স স্থানান্তর হবে।")
             .setView(form)
             .setNegativeButton("বাতিল", null)
-            .setPositiveButton("পাঠান", null)
+            .setPositiveButton(if (isFundTransfer) "ফান্ড ট্রান্সফার করুন" else "টাকা পাঠান", null)
             .create()
         dialog.setOnShowListener {
             dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
