@@ -988,11 +988,45 @@ class MainActivity : Activity() {
             setPadding(dp(18), dp(16), dp(18), dp(22))
         }
 
-        // Premium BPay header: centered brand, menu directly below, account avatar at top-right.
-        val header = FrameLayout(this).apply {
+        // BPay header: account identity on the left; notification and brand/menu on the right.
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(2), dp(3), dp(2), dp(14))
         }
-        val headerRow = LinearLayout(this).apply {
+
+        val accountIdentity = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val accountAvatar = TextView(this).apply {
+            text = "U"
+            textSize = 17f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(navy)
+                setStroke(dp(2), Color.rgb(224, 174, 61))
+            }
+            isClickable = true
+            isFocusable = true
+            contentDescription = "অ্যাকাউন্ট"
+            setOnClickListener { showProfile() }
+        }
+        accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(42), dp(42)))
+        val accountName = text("ইউজার", 13f, ink, true).apply {
+            maxLines = 1
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(9), 0, dp(4), 0)
+            isClickable = true
+            setOnClickListener { showProfile() }
+        }
+        accountIdentity.addView(accountName, LinearLayout.LayoutParams(0, dp(42), 1f))
+
+        val headerSpacer = View(this)
+        val rightActions = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
@@ -1011,8 +1045,10 @@ class MainActivity : Activity() {
             contentDescription = "নোটিফিকেশন"
             setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
         }
-        headerRow.addView(notificationButton, LinearLayout.LayoutParams(dp(42), dp(42)))
-        val centerSlot = FrameLayout(this)
+        rightActions.addView(notificationButton, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+            marginEnd = dp(10)
+        })
+
         val brandStack = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
@@ -1062,30 +1098,14 @@ class MainActivity : Activity() {
         brandStack.addView(menuButton, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
             topMargin = -dp(2)
         })
-        centerSlot.addView(brandStack, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
-        headerRow.addView(centerSlot, LinearLayout.LayoutParams(0, dp(82), 1f))
+        rightActions.addView(brandStack)
 
-        val accountAvatar = TextView(this).apply {
-            text = "U"
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(navy)
-                setStroke(dp(2), Color.rgb(224, 174, 61))
-            }
-            isClickable = true
-            isFocusable = true
-            contentDescription = "অ্যাকাউন্ট"
-            setOnClickListener { showProfile() }
-        }
-        headerRow.addView(accountAvatar, LinearLayout.LayoutParams(dp(44), dp(44)))
-        header.addView(headerRow, FrameLayout.LayoutParams(-1, -2))
+        header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
+        header.addView(headerSpacer, LinearLayout.LayoutParams(dp(4), 1))
+        header.addView(rightActions, LinearLayout.LayoutParams(-2, dp(82)))
         page.addView(header)
 
-        // Load the signed-in account holder name and show its uppercase first character.
+        // Load the signed-in account holder name and its first character.
         val identityToken = securePrefs().getString("access_token", null)
         if (!identityToken.isNullOrBlank()) {
             Thread {
@@ -1107,6 +1127,7 @@ class MainActivity : Activity() {
                             if (securePrefs().getString("access_token", null) == identityToken) {
                                 accountAvatar.text = fullName.first().uppercaseChar().toString()
                                 accountAvatar.contentDescription = "অ্যাকাউন্ট: $fullName"
+                                accountName.text = fullName
                             }
                         }
                     }
