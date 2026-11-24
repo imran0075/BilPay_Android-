@@ -1,6 +1,6 @@
-# BilPay Technologies — Bangladesh Bank RFFO Pilot প্রস্তুতি
+# BPay Technology — Bangladesh Bank RFFO Pilot প্রস্তুতি
 
-**উদ্দেশ্য:** BilPay-এর proposed fintech model সম্পর্কে Bangladesh Bank-এর Regulatory FinTech Facilitation Office (RFFO)-এর লিখিত guidance চাওয়া এবং উপযুক্ত হলে supervised pilot-এর যোগ্যতা/প্রক্রিয়া জানা। এটি PSP licence application নয়, কোনো অনুমোদনের দাবি নয়, এবং কোনো live-money pilot চালুর অনুমতিও নয়।
+**উদ্দেশ্য:** BPay-এর proposed fintech model সম্পর্কে Bangladesh Bank-এর Regulatory FinTech Facilitation Office (RFFO)-এর লিখিত guidance চাওয়া এবং উপযুক্ত হলে supervised pilot-এর যোগ্যতা/প্রক্রিয়া জানা। এটি PSP licence application নয়, কোনো অনুমোদনের দাবি নয়, এবং কোনো live-money pilot চালুর অনুমতিও নয়।
 
 ## 1. প্রাথমিক যোগাযোগ
 
@@ -10,12 +10,12 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 - Department: Payment Systems Department, Bangladesh Bank
 - Official information: https://www.bb.org.bd/en/index.php/financialsystems/paysystems
 
-**প্রস্তাবিত প্রথম পদক্ষেপ:** প্রথমে লিখিতভাবে জেনে নিতে হবে, একক-মালিকানার ট্রেড লাইসেন্সধারী BilPay Technologies কোন কাঠামোয় RFFO-তে fintech proposal দিতে পারবে, এবং customer funds না ধরে licensed PSP/bank-এর অধীনে technology/distribution partner হিসেবে pilot করা যায় কি না।
+**প্রস্তাবিত প্রথম পদক্ষেপ:** প্রথমে লিখিতভাবে জেনে নিতে হবে, একক-মালিকানার ট্রেড লাইসেন্সধারী BPay Technology কোন কাঠামোয় RFFO-তে fintech proposal দিতে পারবে, এবং customer funds না ধরে licensed PSP/bank-এর অধীনে technology/distribution partner হিসেবে pilot করা যায় কি না।
 
-## 2. BilPay-এর প্রস্তাবিত মডেল (আলোচনার জন্য)
+## 2. BPay-এর প্রস্তাবিত মডেল (আলোচনার জন্য)
 
 - Brand: BilPay
-- Business/trade name: বিলপে টেকনোলজিস (BilPay Technologies)
+- Business/trade name: BPay Technology (BPay Technology)
 - Current legal form: sole proprietorship (এটি PSP licence eligibility পূরণ করে—এমন দাবি করা হচ্ছে না)
 - Product: Android app + web service + admin console
 - Proposed services: customer onboarding, bill-payment/recharge service discovery, partner-authorized payment initiation, transaction status and receipts
@@ -26,7 +26,7 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 
 ## 3. RFFO-কে যে প্রশ্নগুলো করতে হবে
 
-1. BilPay Technologies-এর current sole-proprietor form-এ RFFO fintech pilot proposal জমা দেওয়ার সুযোগ আছে কি?
+1. BPay Technology-এর current sole-proprietor form-এ RFFO fintech pilot proposal জমা দেওয়ার সুযোগ আছে কি?
 2. Customer fund custody না করে licensed PSP/bank-এর অধীনে technology service provider বা distribution partner হিসেবে pilot করা যায় কি?
 3. যদি incorporated company, minimum paid-up capital, board/key-person criteria বা অন্য eligibility লাগে, বর্তমান applicable requirements কী?
 4. Proposed stored-value wallet ও internal P2P feature কি PSP licence scope-এর মধ্যে পড়ে, নাকি অন্য কোনো permitted structure আছে?
@@ -63,11 +63,11 @@ Bangladesh Bank-এর Payment Systems পৃষ্ঠায় RFFO-কে fintech
 
 ## 6. Draft email to RFFO
 
-**Subject:** Request for regulatory guidance on BilPay fintech proposal and supervised pilot eligibility
+**Subject:** Request for regulatory guidance on BPay fintech proposal and supervised pilot eligibility
 
 Dear Sir/Madam,
 
-We are developing BilPay under the business name BilPay Technologies in Bangladesh. BilPay is planned as a digital financial-services application with an Android app, web interface and administrative console.
+We are developing BilPay under the business name BPay Technology in Bangladesh. BilPay is planned as a digital financial-services application with an Android app, web interface and administrative console.
 
 We would like to understand the appropriate regulatory structure before offering any payment or stored-value service. In particular, we seek guidance on whether BilPay may participate in an RFFO-supported fintech pilot as a technology/distribution partner under a Bangladesh Bank-licensed bank or PSP, without independently holding customer funds or operating an unlicensed payment service.
 
@@ -85,7 +85,7 @@ Thank you for your guidance.
 
 Sincerely,
 
-BilPay Technologies
+BPay Technology
 Bangladesh
 
 ---
