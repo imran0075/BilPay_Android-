@@ -53,6 +53,11 @@ def test_free_internal_sandbox_transfer_and_idempotency(monkeypatch):
         sender_wallet = client.get("/api/v1/sandbox/wallet", headers=sender_headers)
         recipient_wallet = client.get("/api/v1/sandbox/wallet", headers=recipient_headers)
         live_wallet = client.get("/api/v1/wallet", headers=sender_headers)
+        sender_user_id = client.get("/api/v1/auth/me", headers=sender_headers).json()["id"]
+        sender_ledger_total = api.SessionLocal().query(api.SandboxLedgerEntry).filter(
+            api.SandboxLedgerEntry.user_id == sender_user_id,
+            api.SandboxLedgerEntry.mode == "SANDBOX"
+        ).with_entities(api.func.coalesce(api.func.sum(api.SandboxLedgerEntry.amount), 0)).scalar()
 
     assert sent.status_code == 200
     assert sent.json()["fee"] == "0.00"
@@ -62,6 +67,7 @@ def test_free_internal_sandbox_transfer_and_idempotency(monkeypatch):
     assert replay.json()["transaction_id"] == sent.json()["transaction_id"]
     assert sender_wallet.json()["balance"] == "500.00"
     assert recipient_wallet.json()["balance"] == "500.00"
+    assert str(sender_ledger_total) == "500.00"
     assert live_wallet.status_code == 503
 
 
