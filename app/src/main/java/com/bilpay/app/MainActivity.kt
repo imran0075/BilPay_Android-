@@ -1122,7 +1122,7 @@ class MainActivity : Activity() {
                         "অফার" -> showInfo("BPay Offers", "অফার সুবিধা চালুর প্রস্তুতি চলছে।")
                         "QR" -> showInfo("QR Payment", "QR পেমেন্ট অনুমোদিত মার্চেন্ট API যুক্ত হলে চালু হবে।")
                         "সার্চ" -> showServices()
-                        else -> android.app.AlertDialog.Builder(this)
+                        else -> android.app.AlertDialog.Builder(this@MainActivity)
                             .setTitle("আরও সেবা")
                             .setItems(arrayOf("ইনবক্স • লেনদেন", "সকল সেবা", "প্রোফাইল", "সাপোর্ট")) { _, which ->
                                 when (which) {
