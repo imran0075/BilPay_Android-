@@ -42,6 +42,7 @@
         <button data-tab="transactions">লেনদেন</button>
         <button data-tab="services">সার্ভিস নিয়ন্ত্রণ</button>
         <button data-tab="audit">অডিট লগ</button>
+        <button data-tab="sandbox">নিজস্ব Sandbox</button>
       </div>
       <div id="tableArea"><p class="loading">তথ্য লোড হচ্ছে…</p></div>
       <div id="dashError" class="error" role="alert"></div>
@@ -110,6 +111,29 @@
           try { await request("/admin/services/"+encodeURIComponent(button.dataset.service),{method:"PUT",body:JSON.stringify({visible:button.dataset.visible==="true"})}); await loadTab("services"); }
           catch(e) { $("dashError").textContent=e.message; $("dashError").style.display="block"; button.disabled=false; }
         }));
+      } else if(tab==="sandbox") {
+        const [status,wallet]=await Promise.all([request("/sandbox/status"),request("/sandbox/wallet")]);
+        $("tableArea").innerHTML=
+          '<div class="stat" style="max-width:420px;margin-bottom:16px"><small>নিজস্ব Sandbox Wallet • BDT</small><strong id="sandboxBalance">৳'+esc(wallet.balance)+'</strong><small>শুধু পরীক্ষামূলক ব্যালেন্স; বাস্তব টাকা নয়, উত্তোলনযোগ্য নয়।</small></div>'+
+          '<h3 class="sectionTitle">অ্যাডমিনের নিজের ওয়ালেটে টেস্ট ব্যালেন্স যোগ</h3>'+
+          '<p class="muted">সর্বোচ্চ একবারে ৳১০,০০,০০০। অন্য কোনো ব্যবহারকারীর অ্যাকাউন্টে এই ফিচার দিয়ে টাকা যোগ করা যাবে না।</p>'+
+          '<label for="sandboxAmount">যোগ করার পরিমাণ (৳)</label><input id="sandboxAmount" type="number" min="0.01" max="1000000" step="0.01" value="1000000">'+
+          '<button id="sandboxCreditButton" style="margin-top:14px">নিজের Sandbox Wallet-এ ৳১০,০০,০০০ যোগ করুন</button>'+
+          '<div id="sandboxResult" class="notice" role="status"></div>'+
+          '<p class="notice">Sandbox চালু: '+(status.sandbox_enabled?'হ্যাঁ':'না')+' • বাস্তব ওয়ালেট: বন্ধ • বাস্তব লেনদেন: বন্ধ</p>';
+        $("sandboxCreditButton").addEventListener("click",async()=>{
+          const amount=Number($("sandboxAmount").value);
+          if(!Number.isFinite(amount)||amount<=0||amount>1000000){$("sandboxResult").textContent="পরিমাণ ৳০.০১ থেকে ৳১০,০০,০০০-এর মধ্যে দিন।";return;}
+          if(!window.confirm("আপনার নিজের অ্যাডমিন Sandbox Wallet-এ ৳"+amount.toLocaleString("en-BD")+" কাল্পনিক টেস্ট ব্যালেন্স যোগ করবেন? এটি বাস্তব টাকা নয়।")) return;
+          const b=$("sandboxCreditButton");b.disabled=true;b.textContent="ক্রেডিট যাচাই হচ্ছে…";
+          try {
+            const result=await request("/admin/sandbox/grant",{method:"POST",body:JSON.stringify({amount:amount.toFixed(2)})});
+            const latest=await request("/sandbox/wallet");
+            $("sandboxBalance").textContent="৳"+latest.balance;
+            $("sandboxResult").textContent="সফল • "+result.transaction_id+" • যোগ হয়েছে ৳"+result.amount+" • শুধু Sandbox, বাস্তব টাকা নয়।";
+          } catch(e) {$("sandboxResult").textContent="ক্রেডিট হয়নি: "+e.message;}
+          finally {b.disabled=false;b.textContent="নিজের Sandbox Wallet-এ ব্যালেন্স যোগ করুন";}
+        });
       } else {
         const d=await request("/admin/audit?limit=100");
         $("tableArea").innerHTML=table(["অ্যাডমিন আইডি","কাজ","টার্গেট","বিবরণ","সময়"],d.items.map(x=>[x.admin_user_id,x.action,x.target,x.details,x.created_at]));
