@@ -1049,8 +1049,8 @@ class MainActivity : Activity() {
         brandMenu.addView(menuDivider, LinearLayout.LayoutParams(dp(22), dp(1)))
         brandMenu.addView(text("≡", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
         val notificationButton = TextView(this).apply {
-            text = "♧"
-            textSize = 23f
+            text = "🔔"
+            textSize = 21f
             gravity = Gravity.CENTER
             setTextColor(navy)
             background = GradientDrawable().apply {
@@ -1113,28 +1113,30 @@ class MainActivity : Activity() {
         }
         val balanceTop = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         balanceTop.addView(text("Total Balance", 12f, Color.rgb(206, 214, 245), true))
-        balanceTop.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        val balanceHint = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(9), dp(5), dp(9), dp(5))
-            background = shape(Color.rgb(92, 101, 163), 20)
-            isClickable = true
-            setOnClickListener { toggleHomeBalance() }
-            addView(text("Tap for Balance", 9f, Color.WHITE, true))
-            addView(text("  ◉̸", 11f, Color.WHITE, true))
-        }
-        balanceTop.addView(balanceHint)
         balance.addView(balanceTop)
         val balanceBottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(12), 0, 0)
         }
-        val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true)
+        val balanceHint = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(9), dp(5), dp(9), dp(5))
+            background = shape(Color.rgb(92, 101, 163), 20)
+            isClickable = true
+            isFocusable = true
+            setOnClickListener { toggleHomeBalance() }
+            addView(text("Tap for Balance", 9f, Color.WHITE, true))
+            addView(text("  ◉̸", 11f, Color.WHITE, true))
+        }
+        balanceBottom.addView(balanceHint)
+        balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
+        val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true).apply {
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
         homeBalanceText = balanceAmountText
         balanceBottom.addView(balanceAmountText)
-        balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         balance.addView(balanceBottom)
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
