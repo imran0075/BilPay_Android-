@@ -69,7 +69,7 @@ jobs:
           BILPAY_STORE_PASSWORD: ${{ secrets.BILPAY_STORE_PASSWORD }}
           BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
           BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-sandbox-api-v2.onrender.com" assembleRelease
 
       - name: Verify signed APK
         shell: bash
