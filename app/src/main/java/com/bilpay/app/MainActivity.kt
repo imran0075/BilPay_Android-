@@ -18,7 +18,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 class MainActivity : Activity() {
-    private lateinit var apiStatus: TextView
     private var homeBalance: String? = null
     private var homeBalanceVisible = false
     private var homeBalanceLoading = false
@@ -1186,32 +1185,8 @@ class MainActivity : Activity() {
         }
         root.addView(nav)
         setContentView(root)
-        checkApiConnection()
     }
 
-    private fun checkApiConnection() {
-        val baseUrl = BuildConfig.API_BASE_URL.trim().trimEnd('/')
-        if (baseUrl.isBlank()) {
-            apiStatus.text = "API: এখনো সার্ভার URL সেট করা হয়নি"
-            return
-        }
-        Thread {
-            val connected = try {
-                val connection = (URL(baseUrl + "/health").openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 8000
-                    readTimeout = 8000
-                }
-                val ok = connection.responseCode == 200
-                connection.disconnect()
-                ok
-            } catch (_: Exception) { false }
-            runOnUiThread {
-                apiStatus.text = if (connected) "API: সংযুক্ত ✓" else "API: সার্ভারে সংযোগ পাওয়া যায়নি"
-                apiStatus.setTextColor(if (connected) green else muted)
-            }
-        }.start()
-    }
     private fun section(parent: LinearLayout, title: String, subtitle: String) {
         val wrap = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, dp(25), 0, dp(12)) }
         wrap.addView(text(title, 18f, dark, true))
