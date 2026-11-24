@@ -1049,8 +1049,8 @@ class MainActivity : Activity() {
         brandMenu.addView(menuDivider, LinearLayout.LayoutParams(dp(22), dp(1)))
         brandMenu.addView(text("≡", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
         val notificationButton = TextView(this).apply {
-            text = "♧"
-            textSize = 23f
+            text = "🔔"
+            textSize = 21f
             gravity = Gravity.CENTER
             setTextColor(navy)
             background = GradientDrawable().apply {
