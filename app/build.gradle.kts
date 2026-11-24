@@ -31,10 +31,10 @@ android {
         applicationId = "com.bilpay.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 17
-        versionName = "1.3.4"
+        versionCode = 19
+        versionName = "1.3.6"
         val configuredApiUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?)?.trim()
-        val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-api-5b57.onrender.com"
+        val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-sandbox-api-v2.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

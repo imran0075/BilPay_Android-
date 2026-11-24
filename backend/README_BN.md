@@ -1,6 +1,6 @@
-# BilPay API Backend
+# BPay API Backend
 
-এটি BilPay Android, ওয়েবসাইট ও অ্যাডমিন প্যানেলের জন্য শেয়ার্ড API-এর প্রাথমিক ভিত্তি।
+এটি BPay Android, ওয়েবসাইট ও অ্যাডমিন প্যানেলের জন্য শেয়ার্ড API-এর প্রাথমিক ভিত্তি।
 
 ## লোকালি চালানো
 ```bash
@@ -21,7 +21,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 Swagger docs: `/docs`
 
 ## Render-এ ডেপ্লয়
-GitHub repo `imran0075/BilPay_Android-` থেকে নতুন Web Service তৈরি করুন:
+GitHub repo `imran0075/BPay_Android-` থেকে নতুন Web Service তৈরি করুন:
 - Root Directory: `backend`
 - Runtime: Python 3
 - Build Command: `pip install -r requirements.txt`
