@@ -31,8 +31,8 @@ android {
         applicationId = "com.bilpay.mobile"
         minSdk = 23
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.4.0"
+        versionCode = 24
+        versionName = "1.4.1"
         val configuredApiUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?)?.trim()
         val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-sandbox-api-v2.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
@@ -40,13 +40,10 @@ android {
 
     buildTypes {
         getByName("debug") {
-            // Keep the staging app separate from the production installation.
             applicationIdSuffix = ".staging"
             buildConfigField("String", "API_BASE_URL", "\"https://bilpay-sandbox-api-v2.onrender.com\"")
         }
         getByName("release") {
-            // Use the stable CI debug identity only as a temporary installable fallback.
-            // A genuine production release still requires the private permanent keystore.
             val permanentKeyConfigured = !System.getenv("BILPAY_KEYSTORE_PATH").isNullOrBlank()
             signingConfig = if (permanentKeyConfigured) {
                 signingConfigs.getByName("release")
