@@ -19,6 +19,10 @@ import java.net.URL
 
 class MainActivity : Activity() {
     private lateinit var apiStatus: TextView
+    private var homeBalance: String? = null
+    private var homeBalanceVisible = false
+    private var homeBalanceLoading = false
+    private var homeBalanceText: TextView? = null
     private val green = Color.rgb(0, 112, 78)
     private val dark = Color.rgb(20, 39, 34)
     private val muted = Color.rgb(104, 122, 115)
@@ -753,6 +757,59 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun toggleHomeBalance() {
+        val valueView = homeBalanceText ?: return
+        if (homeBalanceLoading) return
+        val cached = homeBalance
+        if (cached != null) {
+            homeBalanceVisible = !homeBalanceVisible
+            valueView.text = if (homeBalanceVisible) "৳ $cached" else "৳  • • • • • •"
+            return
+        }
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "ব্যালেন্স দেখতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        homeBalanceLoading = true
+        valueView.text = "যাচাই হচ্ছে…"
+        Thread {
+            var fetchedBalance = ""
+            var error = ""
+            try {
+                val (statusCode, statusBody) = sandboxRequest("GET", "/api/v1/sandbox/status", token)
+                if (statusCode !in 200..299) error = sandboxHttpMessage(statusCode, "Sandbox সার্ভার যাচাই")
+                else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) {
+                    error = "Sandbox Wallet বর্তমানে চালু নেই।"
+                } else {
+                    val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
+                    if (profileCode !in 200..299) error = sandboxHttpMessage(profileCode, "অ্যাকাউন্ট যাচাই")
+                    else {
+                        val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
+                        if (walletCode in 200..299) {
+                            fetchedBalance = JSONObject(walletBody).optString("balance", "")
+                            if (fetchedBalance.isBlank()) error = "সার্ভার ব্যালেন্সের তথ্য দেয়নি।"
+                        } else error = sandboxHttpMessage(walletCode, "Sandbox ব্যালেন্স আনা")
+                    }
+                }
+            } catch (_: Exception) {
+                error = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট পরীক্ষা করে আবার চেষ্টা করুন।"
+            }
+            runOnUiThread {
+                homeBalanceLoading = false
+                if (error.isNotBlank()) {
+                    valueView.text = "৳  • • • • • •"
+                    Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+                } else {
+                    homeBalance = fetchedBalance
+                    homeBalanceVisible = true
+                    valueView.text = "৳ $fetchedBalance"
+                }
+            }
+        }.start()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pageBg = Color.rgb(247, 248, 252)
@@ -822,7 +879,7 @@ class MainActivity : Activity() {
                 GradientDrawable.Orientation.TL_BR, intArrayOf(navy2, navy, Color.rgb(28, 35, 84))
             ).apply { cornerRadius = dp(24).toFloat() }
             elevation = dp(4).toFloat()
-            setOnClickListener { showSandboxWallet() }
+            setOnClickListener { toggleHomeBalance() }
         }
         val balanceTop = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         balanceTop.addView(text("Total Balance", 12f, Color.rgb(206, 214, 245), true))
@@ -837,14 +894,14 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(12), 0, 0)
         }
-        balanceBottom.addView(text("৳  • • • • • •", 25f, Color.WHITE, true))
+        homeBalanceText = text("৳  • • • • • •", 25f, Color.WHITE, true)\n        balanceBottom.addView(homeBalanceText)
         balanceBottom.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        balanceBottom.addView(text("◉  Tap for balance", 11f, Color.WHITE, true).apply {
+        balanceBottom.addView(text("◉", 16f, Color.WHITE, true).apply {
             setPadding(dp(11), dp(9), dp(11), dp(9))
             background = shape(Color.rgb(78, 89, 151), 22)
         })
         balance.addView(balanceBottom)
-        balance.addView(text("দেখতে চাপ দিন • Sandbox Wallet • বাস্তব টাকা নয়", 9f, Color.rgb(210, 216, 244)).apply {
+        balance.addView(text("ব্যালেন্স দেখতে কার্ডে চাপ দিন • Sandbox Wallet • বাস্তব টাকা নয়", 9f, Color.rgb(210, 216, 244)).apply {
             setPadding(0, dp(10), 0, 0)
         })
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
