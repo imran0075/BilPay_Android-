@@ -22,6 +22,7 @@ class MainActivity : Activity() {
     private var homeBalance: String? = null
     private var homeBalanceVisible = false
     private var homeBalanceLoading = false
+    private var homeBalanceOwnerToken: String? = null
     private var homeBalanceText: TextView? = null
     private val green = Color.rgb(0, 112, 78)
     private val dark = Color.rgb(20, 39, 34)
@@ -176,6 +177,7 @@ class MainActivity : Activity() {
                     title = "আবার লগইন করুন"
                     message = "আপনার লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
                     prefs.edit().clear().apply()
+                    resetHomeBalance()
                 } else {
                     message = "সার্ভার উত্তর দিয়েছে (HTTP $code)। কিছুক্ষণ পর আবার চেষ্টা করুন।"
                 }
@@ -195,6 +197,7 @@ class MainActivity : Activity() {
                         .setNegativeButton("বন্ধ", null)
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
+                            resetHomeBalance()
                             showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
                         }.show()
                 }
@@ -419,6 +422,7 @@ class MainActivity : Activity() {
                         } catch (e: Exception) { message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
                         runOnUiThread {
                             progress.dismiss()
+                            if (ok) resetHomeBalance()
                             showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message)
                         }
                     }.start()
@@ -658,7 +662,12 @@ class MainActivity : Activity() {
                             runOnUiThread {
                                 progress.dismiss()
                                 showInfo(if (success) "Sandbox ব্যালেন্স যোগ হয়েছে" else "অনুরোধ সম্পন্ন হয়নি", message)
-                                if (success) showSandboxWallet()
+                                if (success) {
+                            // A transfer changes the server-side balance; discard any cached home amount.
+                            resetHomeBalance()
+                            toggleHomeBalance()
+                            showSandboxWallet()
+                        }
                             }
                         }.start()
                     }.show()
@@ -861,19 +870,29 @@ class MainActivity : Activity() {
         showInbox()
     }
 
+    private fun resetHomeBalance() {
+        homeBalance = null
+        homeBalanceOwnerToken = null
+        homeBalanceVisible = false
+        homeBalanceText?.text = "৳  • • • • • •"
+    }
+
     private fun toggleHomeBalance() {
         val valueView = homeBalanceText ?: return
         if (homeBalanceLoading) return
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            resetHomeBalance()
+            showInfo("লগইন প্রয়োজন", "ব্যালেন্স দেখতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        // A cached amount belongs to exactly one login token, never to the next account.
+        if (homeBalance != null && homeBalanceOwnerToken != token) resetHomeBalance()
         val cached = homeBalance
         if (cached != null) {
             homeBalanceVisible = !homeBalanceVisible
             valueView.text = if (homeBalanceVisible) "৳ $cached" else "৳  • • • • • •"
-            return
-        }
-        val token = securePrefs().getString("access_token", null)
-        if (token.isNullOrBlank()) {
-            showInfo("লগইন প্রয়োজন", "ব্যালেন্স দেখতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
-            showAuthForm(false)
             return
         }
         homeBalanceLoading = true
@@ -902,11 +921,17 @@ class MainActivity : Activity() {
             }
             runOnUiThread {
                 homeBalanceLoading = false
+                // Ignore a late response if the user switched accounts while the request was running.
+                if (securePrefs().getString("access_token", null) != token) {
+                    valueView.text = "৳  • • • • • •"
+                    return@runOnUiThread
+                }
                 if (error.isNotBlank()) {
                     valueView.text = "৳  • • • • • •"
                     Toast.makeText(this, error, Toast.LENGTH_LONG).show()
                 } else {
                     homeBalance = fetchedBalance
+                    homeBalanceOwnerToken = token
                     homeBalanceVisible = true
                     valueView.text = "৳ $fetchedBalance"
                 }
