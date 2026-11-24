@@ -253,6 +253,45 @@ def services(db: Session = Depends(get_db)):
 def providers():
     return {"items":PROVIDERS,"live_transactions_enabled":False,"message":"প্রতিটি সেবার অনুমোদিত API সংযোগ সম্পন্ন হলে চালু হবে।"}
 
+@app.get("/api/v1/readiness")
+def integration_readiness(db: Session = Depends(get_db)):
+    """Public, non-secret integration checklist. It never enables money movement."""
+    sandbox_on = os.getenv("BILPAY_SANDBOX_LEDGER_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    live_ledger_on = os.getenv("BILPAY_LIVE_LEDGER_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    service_visibility = {x.service_id: x.visible for x in db.scalars(select(ServiceConfig)).all()}
+    service_items = []
+    for item in SERVICES:
+        service_items.append({
+            "id": item["id"],
+            "name": item["name"],
+            "visible": service_visibility.get(item["id"], True),
+            "ready_for_live": False,
+            "status": "awaiting_provider_integration",
+            "required_before_live": ["merchant_approval", "official_api_credentials", "webhook_verification", "settlement_reconciliation"]
+        })
+    provider_items = [{
+        "id": provider["id"],
+        "name": provider["name"],
+        "status": provider["status"],
+        "credentials_configured": False,
+        "ready_for_live": False
+    } for provider in PROVIDERS]
+    return {
+        "environment": "SANDBOX" if sandbox_on else "API_ONLY",
+        "sandbox_enabled": sandbox_on,
+        "live_ledger_enabled": live_ledger_on,
+        "live_transactions_enabled": False,
+        "cash_in_enabled": False,
+        "cash_out_enabled": False,
+        "external_fund_transfer_enabled": False,
+        "mobile_recharge_enabled": False,
+        "bill_payment_enabled": False,
+        "real_money": False,
+        "services": service_items,
+        "providers": provider_items,
+        "next_step": "প্রতিটি সেবার অনুমোদিত merchant API ও production credentials যুক্ত করে পরীক্ষা করতে হবে।"
+    }
+
 @app.post("/api/v1/auth/register", response_model=AuthOut)
 def register(payload:RegisterRequest, db:Session=Depends(get_db)):
     if db.scalar(select(User).where(User.phone==payload.phone)):
