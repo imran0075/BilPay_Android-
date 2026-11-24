@@ -478,9 +478,13 @@ class MainActivity : Activity() {
         val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("BPay Sandbox Wallet")
             .setView(loadingPanel)
+            .setPositiveButton("আবার চেষ্টা", null)
             .setNegativeButton("বন্ধ", null)
             .create()
         dialog.setCancelable(false)
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).visibility = View.GONE
+        }
         dialog.show()
 
         Thread {
@@ -519,13 +523,11 @@ class MainActivity : Activity() {
                         addView(text("কোনো ব্যালেন্স অনুমান করে দেখানো হয়নি।", 10f, muted))
                     }
                     dialog.setView(errorPanel)
-                    dialog.setButton(android.app.AlertDialog.BUTTON_POSITIVE, "আবার চেষ্টা", null)
-                    dialog.setButton(android.app.AlertDialog.BUTTON_NEGATIVE, "বন্ধ", null)
+                    dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).visibility = View.VISIBLE
                     dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                         dialog.dismiss()
                         showSandboxWallet()
                     }
-                    dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener { dialog.dismiss() }
                 } else {
                     dialog.dismiss()
                     renderSandboxWallet(token, balance, isAdmin)
