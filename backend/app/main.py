@@ -238,6 +238,10 @@ class ServiceVisibilityRequest(BaseModel):
 @app.get("/")
 def root():
     return {"name":"BilPay API","version":app.version,"status":"ready","account_registration_enabled":True,"wallet_enabled":False,"live_transactions_enabled":False}
+@app.head("/")
+def root_head():
+    return {"ok": True, "service": "BilPay API"}
+
 @app.get("/health")
 def health():
     return {"ok":True,"service":"bilpay-api"}
