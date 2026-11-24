@@ -61,7 +61,7 @@ class MainActivity : Activity() {
                 if (latestCode > BuildConfig.VERSION_CODE && apkUrl.startsWith("https://") && apkSha256.matches(Regex("^[a-f0-9]{64}$"))) {
                     runOnUiThread {
                         android.app.AlertDialog.Builder(this)
-                            .setTitle("নতুন BilPay আপডেট")
+                            .setTitle("নতুন BPay আপডেট")
                             .setMessage("নতুন সংস্করণ $latestName পাওয়া গেছে। আপডেট ডাউনলোড করে ইনস্টল করতে পারবেন।")
                             .setNegativeButton("পরে", null)
                             .setPositiveButton("আপডেট করুন") { _, _ -> downloadUpdate(apkUrl, apkSha256) }
@@ -77,7 +77,7 @@ class MainActivity : Activity() {
     }
 
     private fun updateApkFile(): File =
-        File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "BilPay-update.apk")
+        File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "BPay-update.apk")
 
     private fun ensureDownloadReceiver() {
         if (downloadReceiver != null) return
@@ -104,11 +104,11 @@ class MainActivity : Activity() {
             updateApkFile().delete()
             updateState.edit().putBoolean("apk_ready", false).putString("expected_sha256", expectedSha256).apply()
             val request = DownloadManager.Request(Uri.parse(apkUrl))
-                .setTitle("BilPay আপডেট")
+                .setTitle("BPay আপডেট")
                 .setDescription("নতুন সংস্করণ ডাউনলোড হচ্ছে")
                 .setMimeType("application/vnd.android.package-archive")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "BilPay-update.apk")
+                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, "BPay-update.apk")
             val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val downloadId = manager.enqueue(request)
             updateState.edit().putLong("download_id", downloadId).apply()
@@ -180,7 +180,7 @@ class MainActivity : Activity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
             if (!permissionSettingsOpened) {
                 permissionSettingsOpened = true
-                Toast.makeText(this, "BilPay-এর জন্য APK ইনস্টল করার অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "BPay-এর জন্য APK ইনস্টল করার অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
                 try {
                     startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
                 } catch (_: Exception) {
@@ -205,7 +205,7 @@ class MainActivity : Activity() {
             startActivity(installIntent)
         } catch (_: Exception) {
             installerLaunched = false
-            Toast.makeText(this, "ইনস্টলার খোলা যায়নি। Settings থেকে BilPay-এর unknown-app install অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "ইনস্টলার খোলা যায়নি। Settings থেকে BPay-এর unknown-app install অনুমতি চালু করুন।", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -237,7 +237,7 @@ class MainActivity : Activity() {
             lower == "প্রোফাইল" -> showProfile()
             lower == "পরীক্ষামূলক ওয়ালেট" -> showSandboxWallet()
             lower == "সাপোর্ট" || lower == "সহায়তা" -> showSupport()
-            lower == "হোম" -> showInfo("BilPay", "আপনি BilPay-এর হোম স্ক্রিনে আছেন।")
+            lower == "হোম" -> showInfo("BPay", "আপনি BPay-এর হোম স্ক্রিনে আছেন।")
             lower == "হিসাব" || lower == "লেনদেন" -> showHistory()
             lower.contains("বিদ্যুৎ") || lower.contains("পানি") || lower.contains("গ্যাস") ||
                 lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
@@ -313,7 +313,7 @@ class MainActivity : Activity() {
                 }
                 val labels = items.distinct().toTypedArray()
                 android.app.AlertDialog.Builder(this)
-                    .setTitle("BilPay • সকল সেবা")
+                    .setTitle("BPay • সকল সেবা")
                     .setItems(labels) { _, which -> action(labels[which]) }
                     .setNegativeButton("বন্ধ", null)
                     .show()
@@ -334,7 +334,7 @@ class MainActivity : Activity() {
         val token = prefs.getString("access_token", null)
         if (token.isNullOrBlank()) {
             android.app.AlertDialog.Builder(this)
-                .setTitle("BilPay অ্যাকাউন্ট")
+                .setTitle("BPay অ্যাকাউন্ট")
                 .setItems(arrayOf("লগইন", "নতুন অ্যাকাউন্ট তৈরি")) { _, which -> showAuthForm(which == 1) }
                 .setNegativeButton("বন্ধ", null).show()
             return
@@ -345,7 +345,7 @@ class MainActivity : Activity() {
             show()
         }
         Thread {
-            var title = "BilPay অ্যাকাউন্ট"
+            var title = "BPay অ্যাকাউন্ট"
             var message = "প্রোফাইল তথ্য পাওয়া যায়নি।"
             var profileName = "নাম দেওয়া হয়নি"
             var profilePhone = ""
@@ -366,7 +366,7 @@ class MainActivity : Activity() {
                     val user = JSONObject(body)
                     profileName = user.optString("full_name").ifBlank { "নাম দেওয়া হয়নি" }
                     profilePhone = user.optString("phone")
-                    message = "নাম: $profileName\\nমোবাইল: $profilePhone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BilPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
+                    message = "নাম: $profileName\\nমোবাইল: $profilePhone\\nঅ্যাকাউন্ট ID: " + user.optInt("id") + "\\n\\nতথ্য সরাসরি BPay সার্ভার থেকে এসেছে।\\nওয়ালেট ও আর্থিক লেনদেনের সুবিধা বাস্তব লেজার ও অনুমোদিত অংশীদার API যুক্ত হওয়ার পর চালু হবে."
                 } else if (code == 401) {
                     sessionExpired = true
                     title = "আবার লগইন করুন"
@@ -391,7 +391,7 @@ class MainActivity : Activity() {
                         .setNegativeButton("বন্ধ", null)
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
-                            showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BilPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
+                            showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
                         }.show()
                 }
             }
@@ -565,7 +565,7 @@ class MainActivity : Activity() {
         if (register) form.addView(fullName)
         form.addView(phone); form.addView(password)
         android.app.AlertDialog.Builder(this)
-            .setTitle(if (register) "নতুন BilPay অ্যাকাউন্ট" else "BilPay লগইন")
+            .setTitle(if (register) "নতুন BPay অ্যাকাউন্ট" else "BPay লগইন")
             .setMessage("নিজের মোবাইল নম্বর ব্যবহার করুন। পাসওয়ার্ড কাউকে দেবেন না।")
             .setView(form)
             .setNegativeButton("বাতিল", null)
@@ -624,7 +624,7 @@ class MainActivity : Activity() {
 
     private fun showSupport() {
         showInfo(
-            "BilPay সাপোর্ট",
+            "BPay সাপোর্ট",
             "ইমেইল: imran16102001bd@gmail.com\nমোবাইল: +8801977714371\n\nPIN, OTP বা পাসওয়ার্ড কাউকে জানাবেন না।"
         )
     }
@@ -657,7 +657,7 @@ class MainActivity : Activity() {
     private fun showSandboxWallet() {
         val token = securePrefs().getString("access_token", null)
         if (token.isNullOrBlank()) {
-            showInfo("লগইন প্রয়োজন", "Sandbox Wallet ব্যবহার করতে আগে BilPay অ্যাকাউন্টে লগইন করুন।")
+            showInfo("লগইন প্রয়োজন", "Sandbox Wallet ব্যবহার করতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
             showAuthForm(false)
             return
         }
@@ -720,7 +720,7 @@ class MainActivity : Activity() {
             panel.addView(adminGrant, LinearLayout.LayoutParams(-1, dp(48)).apply { topMargin = dp(10) })
         }
         android.app.AlertDialog.Builder(this)
-            .setTitle("BilPay Sandbox Wallet")
+            .setTitle("BPay Sandbox Wallet")
             .setView(panel)
             .setPositiveButton("বন্ধ", null)
             .show()
@@ -768,7 +768,7 @@ class MainActivity : Activity() {
 
     private fun showSandboxTransfer(token: String) {
         val form = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(8), dp(20), 0) }
-        val phone = EditText(this).apply { hint = "প্রাপকের BilPay নম্বর"; inputType = android.text.InputType.TYPE_CLASS_PHONE }
+        val phone = EditText(this).apply { hint = "প্রাপকের BPay নম্বর"; inputType = android.text.InputType.TYPE_CLASS_PHONE }
         val amount = EditText(this).apply { hint = "পরিমাণ (৳)"; inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL }
         form.addView(phone); form.addView(amount)
         val dialog = android.app.AlertDialog.Builder(this)
@@ -784,7 +784,7 @@ class MainActivity : Activity() {
                 val value = amount.text.toString().trim()
                 val decimal = value.toBigDecimalOrNull()
                 if (!recipient.matches(Regex("^01[3-9][0-9]{8}$")) || decimal == null || decimal <= java.math.BigDecimal.ZERO || decimal.scale() > 2 || decimal > java.math.BigDecimal("10000")) {
-                    showInfo("তথ্য যাচাই", "সঠিক ১১ সংখ্যার BilPay নম্বর এবং ৳০.০১ থেকে ৳১০,০০০ পর্যন্ত পরিমাণ লিখুন।")
+                    showInfo("তথ্য যাচাই", "সঠিক ১১ সংখ্যার BPay নম্বর এবং ৳০.০১ থেকে ৳১০,০০০ পর্যন্ত পরিমাণ লিখুন।")
                     return@setOnClickListener
                 }
                 dialog.dismiss()
@@ -847,7 +847,7 @@ class MainActivity : Activity() {
         if (BuildConfig.API_BASE_URL.contains("sandbox", ignoreCase = true)) {
             val token = securePrefs().getString("access_token", null)
             if (token.isNullOrBlank()) {
-                showInfo("লগইন প্রয়োজন", "Sandbox লেনদেনের ইতিহাস দেখতে আগে BilPay Staging অ্যাকাউন্টে লগইন করুন।")
+                showInfo("লগইন প্রয়োজন", "Sandbox লেনদেনের ইতিহাস দেখতে আগে BPay Staging অ্যাকাউন্টে লগইন করুন।")
                 showAuthForm(false)
             } else {
                 showSandboxHistory(token)
@@ -877,7 +877,7 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(18), dp(20), dp(26))
         }
 
-        // Compact BilPay brand header aligned to the start side
+        // Compact BPay brand header aligned to the start side
         val brand = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -886,7 +886,7 @@ class MainActivity : Activity() {
         val mark = ImageView(this).apply {
             setImageResource(R.drawable.bilpay_home_logo)
             scaleType = ImageView.ScaleType.FIT_CENTER
-            contentDescription = "BilPay home logo"
+            contentDescription = "BPay home logo"
         }
         brand.addView(mark, LinearLayout.LayoutParams(dp(38), dp(38)))
         val brandText = LinearLayout(this).apply {
@@ -894,10 +894,10 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(10), 0, 0, 0)
         }
-        brandText.addView(text("BilPay", 19f, ink, true))
+        brandText.addView(text("BPay", 19f, ink, true))
         brandText.addView(text("ONE APP. ALL SERVICES.", 8f, soft, true).apply { setPadding(0, dp(2), 0, 0) })
         brand.addView(brandText, LinearLayout.LayoutParams(-2, -2))
-        // Keep the BilPay brand on the left and the overflow/settings menu on the right.
+        // Keep the BPay brand on the left and the overflow/settings menu on the right.
         brand.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         val moreButton = TextView(this).apply {
             text = "⋮"
@@ -913,7 +913,7 @@ class MainActivity : Activity() {
                 popup.menu.add("সাপোর্ট")
                 popup.setOnMenuItemClickListener { item ->
                     when (item.title.toString()) {
-                         "সেটিংস" -> showInfo("সেটিংস", "BilPay অ্যাকাউন্ট ও নিরাপত্তা সেটিংস। বাস্তব আর্থিক সেবা অনুমোদিত API যুক্ত হওয়ার পর চালু হবে.")
+                         "সেটিংস" -> showInfo("সেটিংস", "BPay অ্যাকাউন্ট ও নিরাপত্তা সেটিংস। বাস্তব আর্থিক সেবা অনুমোদিত API যুক্ত হওয়ার পর চালু হবে.")
                         "প্রোফাইল" -> showProfile()
                         "সাপোর্ট" -> showSupport()
                     }
@@ -1018,7 +1018,7 @@ class MainActivity : Activity() {
         page.addView(safety, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(22) })
         apiStatus = text("অ্যাকাউন্ট প্রস্তুত • আর্থিক সেবা API সংযুক্তির অপেক্ষায়", 10f, soft).apply { setPadding(dp(3), dp(12), dp(3), 0) }
         page.addView(apiStatus)
-        page.addView(text("BilPay Android v1.3.4", 9f, soft).apply {
+        page.addView(text("BPay Android v1.3.6", 9f, soft).apply {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, 0)
         })
