@@ -321,12 +321,13 @@ def sandbox_grant(payload: SandboxGrantRequest, admin: User = Depends(admin_user
             db.flush()
         txid = "SBX-" + uuid.uuid4().hex[:24].upper()
         wallet.balance = Decimal(wallet.balance) + payload.amount
-        db.add_all([
-            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
-                               amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"),
-            SandboxLedgerEntry(entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=admin.id,
-                               amount=-payload.amount, entry_type="TEST_FAUCET_DEBIT", mode="SANDBOX")
-        ])
+        # A test grant credits the target sandbox wallet. Do not post a
+        # synthetic debit to the admin's customer wallet: the test faucet is
+        # a non-customer funding source, recorded by the admin audit log.
+        db.add(SandboxLedgerEntry(
+            entry_id=uuid.uuid4().hex, transaction_id=txid, user_id=target.id,
+            amount=payload.amount, entry_type="TEST_CREDIT", mode="SANDBOX"
+        ))
         db.add(AdminAuditLog(admin_user_id=admin.id, action="sandbox_test_credit", target=target.phone,
                              details=f"{payload.amount} BDT non-redeemable sandbox credit"))
     return {"transaction_id":txid, "amount":str(payload.amount), "mode":"SANDBOX",
