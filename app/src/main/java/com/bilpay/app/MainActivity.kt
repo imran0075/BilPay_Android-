@@ -1000,7 +1000,7 @@ class MainActivity : Activity() {
             text = "🔔"
             textSize = 20f
             gravity = Gravity.CENTER
-            setTextColor(navy)
+            setTextColor(Color.BLACK)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
