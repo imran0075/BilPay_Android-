@@ -14,8 +14,10 @@ def test_readiness_reports_integrations_pending_and_live_money_off(monkeypatch):
     monkeypatch.setenv("BILPAY_LIVE_LEDGER_ENABLED", "true")
 
     with TestClient(api.app) as client:
+        head_response = client.head("/")
         response = client.get("/api/v1/readiness")
 
+    assert head_response.status_code == 200
     assert response.status_code == 200
     payload = response.json()
     assert payload["sandbox_enabled"] is True
