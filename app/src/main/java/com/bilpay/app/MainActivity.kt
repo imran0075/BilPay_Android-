@@ -988,47 +988,62 @@ class MainActivity : Activity() {
             setPadding(dp(18), dp(16), dp(18), dp(22))
         }
 
-        // Premium BPay header
-        val header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+        // Premium BPay header: centered brand, menu directly below, account avatar at top-right.
+        val header = FrameLayout(this).apply {
             setPadding(dp(2), dp(3), dp(2), dp(14))
         }
-        val accountAvatar = TextView(this).apply {
-            text = "U"
-            textSize = 18f
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        val notificationButton = TextView(this).apply {
+            text = "🔔"
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setTextColor(navy)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(224, 174, 61))
+            }
+            isClickable = true
+            isFocusable = true
+            contentDescription = "নোটিফিকেশন"
+            setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
+        }
+        headerRow.addView(notificationButton, LinearLayout.LayoutParams(dp(42), dp(42)))
+        val centerSlot = FrameLayout(this)
+        val brandStack = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+        }
+        val brandMark = TextView(this).apply {
+            text = "B"
+            textSize = 27f
+            setTypeface(null, Typeface.BOLD)
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(red)
+                setStroke(dp(2), Color.rgb(244, 211, 151))
+            }
+        }
+        brandStack.addView(brandMark, LinearLayout.LayoutParams(dp(48), dp(48)))
+        val menuButton = TextView(this).apply {
+            text = "☰"
+            textSize = 17f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(navy)
-                setStroke(dp(2), Color.rgb(224, 174, 61))
-            }
-        }
-        header.addView(accountAvatar, LinearLayout.LayoutParams(dp(44), dp(44)))
-        val identity = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(10), 0, 0, 0)
-        }
-        val accountNameView = text("অ্যাকাউন্ট", 14f, ink, true).apply { maxLines = 1 }
-        identity.addView(accountNameView)
-        identity.addView(text("BPay Account", 9f, soft))
-        header.addView(identity)
-        header.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-
-        // Brand mark and menu share one compact circular control on the right.
-        val brandMenu = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(red)
                 setStroke(dp(2), Color.rgb(244, 211, 151))
             }
             isClickable = true
             isFocusable = true
+            contentDescription = "মেনু"
             setOnClickListener {
                 android.app.AlertDialog.Builder(this@MainActivity)
                     .setTitle("BPay মেনু")
@@ -1044,35 +1059,33 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandMenu.addView(text("B", 21f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-        val menuDivider = View(this).apply { setBackgroundColor(Color.rgb(244, 211, 151)) }
-        brandMenu.addView(menuDivider, LinearLayout.LayoutParams(dp(22), dp(1)))
-        brandMenu.addView(text("≡", 17f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-        val notificationButton = TextView(this).apply {
-            text = "🔔"
-            textSize = 21f
+        brandStack.addView(menuButton, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
+            topMargin = -dp(2)
+        })
+        centerSlot.addView(brandStack, FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL))
+        headerRow.addView(centerSlot, LinearLayout.LayoutParams(0, dp(82), 1f))
+
+        val accountAvatar = TextView(this).apply {
+            text = "U"
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(navy)
+            setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp(1), Color.rgb(224, 174, 61))
+                setColor(navy)
+                setStroke(dp(2), Color.rgb(224, 174, 61))
             }
             isClickable = true
             isFocusable = true
-            contentDescription = "নোটিফিকেশন"
-            setOnClickListener {
-                showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।")
-            }
+            contentDescription = "অ্যাকাউন্ট"
+            setOnClickListener { showProfile() }
         }
-        val notificationParams = LinearLayout.LayoutParams(dp(42), dp(42)).apply {
-            marginEnd = dp(8)
-        }
-        header.addView(notificationButton, notificationParams)
-        header.addView(brandMenu, LinearLayout.LayoutParams(dp(48), dp(48)))
+        headerRow.addView(accountAvatar, LinearLayout.LayoutParams(dp(44), dp(44)))
+        header.addView(headerRow, FrameLayout.LayoutParams(-1, -2))
         page.addView(header)
 
-        // Load the signed-in account holder name from the authenticated profile.
+        // Load the signed-in account holder name and show its uppercase first character.
         val identityToken = securePrefs().getString("access_token", null)
         if (!identityToken.isNullOrBlank()) {
             Thread {
@@ -1092,8 +1105,8 @@ class MainActivity : Activity() {
                         val fullName = JSONObject(body).optString("full_name").trim()
                         if (fullName.isNotBlank()) runOnUiThread {
                             if (securePrefs().getString("access_token", null) == identityToken) {
-                                accountNameView.text = fullName
                                 accountAvatar.text = fullName.first().uppercaseChar().toString()
+                                accountAvatar.contentDescription = "অ্যাকাউন্ট: $fullName"
                             }
                         }
                     }
