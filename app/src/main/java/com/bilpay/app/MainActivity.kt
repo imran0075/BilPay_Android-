@@ -22,6 +22,7 @@ class MainActivity : Activity() {
     private var homeBalance: String? = null
     private var homeBalanceVisible = false
     private var homeBalanceLoading = false
+    private var homeBalanceHideRunnable: Runnable? = null
     private var homeBalanceOwnerToken: String? = null
     private var homeBalanceText: TextView? = null
     private val green = Color.rgb(0, 112, 78)
@@ -870,7 +871,26 @@ class MainActivity : Activity() {
         showInbox()
     }
 
+    private fun cancelHomeBalanceAutoHide() {
+        homeBalanceHideRunnable?.let { homeBalanceText?.removeCallbacks(it) }
+        homeBalanceHideRunnable = null
+    }
+
+    private fun scheduleHomeBalanceAutoHide(token: String, valueView: TextView) {
+        cancelHomeBalanceAutoHide()
+        val hideTask = Runnable {
+            if (homeBalanceOwnerToken == token && securePrefs().getString("access_token", null) == token) {
+                homeBalanceVisible = false
+                valueView.text = "৳  • • • • • •"
+            }
+            homeBalanceHideRunnable = null
+        }
+        homeBalanceHideRunnable = hideTask
+        valueView.postDelayed(hideTask, 5_000L)
+    }
+
     private fun resetHomeBalance() {
+        cancelHomeBalanceAutoHide()
         homeBalance = null
         homeBalanceOwnerToken = null
         homeBalanceVisible = false
@@ -892,7 +912,13 @@ class MainActivity : Activity() {
         val cached = homeBalance
         if (cached != null) {
             homeBalanceVisible = !homeBalanceVisible
-            valueView.text = if (homeBalanceVisible) "৳ $cached" else "৳  • • • • • •"
+            if (homeBalanceVisible) {
+                valueView.text = "৳ $cached"
+                scheduleHomeBalanceAutoHide(token, valueView)
+            } else {
+                cancelHomeBalanceAutoHide()
+                valueView.text = "৳  • • • • • •"
+            }
             return
         }
         homeBalanceLoading = true
@@ -934,6 +960,7 @@ class MainActivity : Activity() {
                     homeBalanceOwnerToken = token
                     homeBalanceVisible = true
                     valueView.text = "৳ $fetchedBalance"
+                    scheduleHomeBalanceAutoHide(token, valueView)
                 }
             }
         }.start()
