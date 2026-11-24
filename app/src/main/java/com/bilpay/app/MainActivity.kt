@@ -177,7 +177,6 @@ class MainActivity : Activity() {
                     title = "আবার লগইন করুন"
                     message = "আপনার লগইন সেশনের মেয়াদ শেষ হয়েছে। আবার লগইন করুন।"
                     prefs.edit().clear().apply()
-                    resetHomeBalance()
                 } else {
                     message = "সার্ভার উত্তর দিয়েছে (HTTP $code)। কিছুক্ষণ পর আবার চেষ্টা করুন।"
                 }
@@ -187,6 +186,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 progress.dismiss()
                 if (sessionExpired) {
+                    resetHomeBalance()
                     showInfo(title, message)
                     showAuthForm(false)
                 } else {
