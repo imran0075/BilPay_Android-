@@ -921,7 +921,7 @@ class MainActivity : Activity() {
             background = shape(Color.rgb(78, 89, 151), 22)
         })
         balance.addView(balanceBottom)
-        balance.addView(text("ব্যালেন্স দেখতে কার্ডে চাপ দিন • Sandbox Wallet • বাস্তব টাকা নয়", 9f, Color.rgb(210, 216, 244)).apply {
+        balance.addView(text("ব্যালেন্স দেখতে কার্ডে চাপ দিন", 9f, Color.rgb(210, 216, 244)).apply {
             setPadding(0, dp(10), 0, 0)
         })
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
