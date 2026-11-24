@@ -1013,10 +1013,17 @@ class MainActivity : Activity() {
         val balanceTop = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         balanceTop.addView(text("Total Balance", 12f, Color.rgb(206, 214, 245), true))
         balanceTop.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
-        balanceTop.addView(text("পরীক্ষামূলক", 9f, Color.WHITE, true).apply {
+        val balanceHint = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(9), dp(5), dp(9), dp(5))
             background = shape(Color.rgb(92, 101, 163), 20)
-        })
+            isClickable = true
+            setOnClickListener { toggleHomeBalance() }
+            addView(text("ট্যাপ ফর ব্যালেন্স", 9f, Color.WHITE, true))
+            addView(text("  ◉̸", 13f, Color.WHITE, true))
+        }
+        balanceTop.addView(balanceHint)
         balance.addView(balanceTop)
         val balanceBottom = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
