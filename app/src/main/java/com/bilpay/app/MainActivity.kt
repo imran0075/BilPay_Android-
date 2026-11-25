@@ -1150,11 +1150,11 @@ class MainActivity : Activity() {
         brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 17f
+            textSize = 12f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            // Menu glyph stays white with no red circle or colored background.
+            // Small, clearly visible menu glyph only; no button shape or background.
+            setTextColor(red)
             background = null
             elevation = 0f
             isClickable = true
