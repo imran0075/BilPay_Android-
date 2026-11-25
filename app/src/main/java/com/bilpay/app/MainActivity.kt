@@ -1059,9 +1059,9 @@ class MainActivity : Activity() {
             marginEnd = dp(10)
         })
 
-        // White circular B mark with a small overlapping menu badge, matching the supplied reference.
+        // Keep the complete B logo circle exactly the same 54dp size as the user avatar and bell.
         val brandStack = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(62), dp(62))
+            layoutParams = LinearLayout.LayoutParams(dp(54), dp(54))
         }
         val brandMark = TextView(this).apply {
             text = "B"
@@ -1107,23 +1107,31 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(30), dp(30), Gravity.BOTTOM or Gravity.END))
-        rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(62), dp(62)))
+        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.BOTTOM or Gravity.END))
+        rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(54), dp(54)))
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
         header.addView(headerSpacer, LinearLayout.LayoutParams(dp(4), 1))
         header.addView(rightActions, LinearLayout.LayoutParams(-2, dp(82)))
         page.addView(header)
 
-        // Load the signed-in account holder name and its first character.
-        val identityToken = securePrefs().getString("access_token", null)
+        // Load the active account name for this exact login token.
+        val identityPrefs = securePrefs()
+        val identityToken = identityPrefs.getString("access_token", null)
         if (!identityToken.isNullOrBlank()) {
+            val cachedToken = identityPrefs.getString("account_name_token", null)
+            val cachedName = identityPrefs.getString("account_full_name", null).orEmpty()
+            if (cachedToken == identityToken && cachedName.isNotBlank()) {
+                accountAvatar.text = cachedName.trim().first().uppercaseChar().toString()
+                accountAvatar.contentDescription = "অ্যাকাউন্ট: $cachedName"
+                accountName.text = cachedName
+            }
             Thread {
                 try {
                     val connection = (URL(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/v1/auth/me").openConnection() as HttpURLConnection).apply {
                         requestMethod = "GET"
-                        connectTimeout = 10000
-                        readTimeout = 10000
+                        connectTimeout = 15000
+                        readTimeout = 15000
                         setRequestProperty("Authorization", "Bearer $identityToken")
                         setRequestProperty("Accept", "application/json")
                     }
@@ -1131,18 +1139,38 @@ class MainActivity : Activity() {
                     val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
                         ?.bufferedReader()?.use { it.readText() }.orEmpty()
                     connection.disconnect()
-                    if (code in 200..299) {
-                        val fullName = JSONObject(body).optString("full_name").trim()
-                        if (fullName.isNotBlank()) runOnUiThread {
-                            if (securePrefs().getString("access_token", null) == identityToken) {
-                                accountAvatar.text = fullName.first().uppercaseChar().toString()
-                                accountAvatar.contentDescription = "অ্যাকাউন্ট: $fullName"
-                                accountName.text = fullName
+                    if (code == 401) {
+                        identityPrefs.edit().remove("account_full_name").remove("account_name_token").apply()
+                    } else if (code in 200..299) {
+                        val response = JSONObject(body)
+                        val user = response.optJSONObject("user")
+                            ?: response.optJSONObject("data")
+                            ?: response.optJSONObject("profile")
+                            ?: response
+                        val fullName = user.optString("full_name")
+                            .ifBlank { user.optString("display_name") }
+                            .ifBlank { user.optString("name") }
+                            .trim()
+                        if (fullName.isNotBlank()) {
+                            identityPrefs.edit()
+                                .putString("account_full_name", fullName)
+                                .putString("account_name_token", identityToken)
+                                .apply()
+                            runOnUiThread {
+                                if (securePrefs().getString("access_token", null) == identityToken) {
+                                    accountAvatar.text = fullName.first().uppercaseChar().toString()
+                                    accountAvatar.contentDescription = "অ্যাকাউন্ট: $fullName"
+                                    accountName.text = fullName
+                                }
                             }
                         }
                     }
                 } catch (_: Exception) { }
             }.start()
+        } else {
+            accountAvatar.text = "U"
+            accountAvatar.contentDescription = "অ্যাকাউন্ট"
+            accountName.text = "ইউজার"
         }
 
         // Balance card: title on top; options and balance hint aligned across the middle.
