@@ -1017,8 +1017,8 @@ class MainActivity : Activity() {
             setTextColor(red)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp(2), Color.WHITE)
+                setColor(Color.rgb(255, 241, 242))
+                setStroke(dp(2), red)
             }
             isClickable = true
             isFocusable = true
@@ -1040,15 +1040,15 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        val notificationButton = TextView(this).apply {
-            text = "🔔"
-            textSize = 20f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+        val notificationButton = ImageView(this).apply {
+            setImageResource(android.R.drawable.ic_popup_reminder)
+            setColorFilter(red)
+            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setPadding(dp(15), dp(15), dp(15), dp(15))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.rgb(48, 48, 48))
-                setStroke(dp(1), Color.rgb(65, 65, 65))
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(238, 220, 220))
             }
             isClickable = true
             isFocusable = true
@@ -1079,16 +1079,12 @@ class MainActivity : Activity() {
         brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 10f
+            textSize = 16f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(red)
-                setStroke(dp(1), Color.WHITE)
-            }
-            elevation = dp(4).toFloat()
+            setTextColor(red)
+            background = null
+            elevation = 0f
             isClickable = true
             isFocusable = true
             contentDescription = "মেনু"
@@ -1107,7 +1103,7 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(26), dp(26), Gravity.BOTTOM or Gravity.END))
+        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.BOTTOM or Gravity.END))
         rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(54), dp(54)))
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
@@ -1176,10 +1172,10 @@ class MainActivity : Activity() {
         // Balance card: title on top; options and balance hint aligned across the middle.
         val balance = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(12), dp(16), dp(12))
+            setPadding(dp(14), dp(8), dp(14), dp(8))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(245, 35, 45), Color.rgb(210, 0, 18), Color.rgb(175, 0, 15))
-            ).apply { cornerRadius = dp(24).toFloat() }
+            ).apply { cornerRadius = dp(20).toFloat() }
             elevation = dp(4).toFloat()
         }
         balance.addView(text("Total Balance", 13f, Color.WHITE, true))
@@ -1214,7 +1210,7 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, 0)
         }
         homeBalanceText = balanceAmountText
-        balance.addView(balanceAmountText, LinearLayout.LayoutParams(-1, dp(46)))
+        balance.addView(balanceAmountText, LinearLayout.LayoutParams(-1, dp(40)))
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
         // 4-column quick service grid, following the supplied reference layout.
