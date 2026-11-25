@@ -975,16 +975,16 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pageBg = Color.rgb(247, 248, 252)
-        val navy = Color.rgb(34, 43, 105)
-        val navy2 = Color.rgb(48, 61, 133)
-        val red = Color.rgb(205, 35, 54)
+        val pageBg = Color.WHITE
+        val red = Color.rgb(205, 0, 18)
+        val navy = Color.rgb(190, 0, 16)
+        val navy2 = Color.rgb(235, 0, 20)
         val gold = Color.rgb(224, 174, 61)
         val ink = Color.rgb(30, 35, 54)
         val soft = Color.rgb(119, 126, 148)
-        window.statusBarColor = navy
-        window.navigationBarColor = navy
-        window.decorView.systemUiVisibility = 0
+        window.statusBarColor = red
+        window.navigationBarColor = Color.WHITE
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1001,6 +1001,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(2), dp(3), dp(2), dp(14))
+            setBackgroundColor(red)
         }
 
         val accountIdentity = LinearLayout(this).apply {
@@ -1015,8 +1016,8 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(navy)
-                setStroke(dp(2), Color.rgb(224, 174, 61))
+                setColor(Color.WHITE)
+                setStroke(dp(2), Color.WHITE)
             }
             isClickable = true
             isFocusable = true
@@ -1024,7 +1025,7 @@ class MainActivity : Activity() {
             setOnClickListener { showProfile() }
         }
         accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(42), dp(42)))
-        val accountName = text("ইউজার", 13f, ink, true).apply {
+        val accountName = text("ইউজার", 13f, Color.WHITE, true).apply {
             maxLines = 1
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(9), 0, dp(4), 0)
@@ -1083,8 +1084,8 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp(1), Color.rgb(225, 225, 225))
+                setColor(red)
+                setStroke(dp(1), Color.WHITE)
             }
             elevation = dp(4).toFloat()
             isClickable = true
@@ -1148,11 +1149,11 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(18))
             background = GradientDrawable(
-                GradientDrawable.Orientation.TL_BR, intArrayOf(navy2, navy, Color.rgb(28, 35, 84))
+                GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(245, 35, 45), Color.rgb(210, 0, 18), Color.rgb(175, 0, 15))
             ).apply { cornerRadius = dp(24).toFloat() }
             elevation = dp(4).toFloat()
         }
-        balance.addView(text("Total Balance", 13f, Color.rgb(206, 214, 245), true))
+        balance.addView(text("Total Balance", 13f, Color.WHITE, true))
 
         val balanceControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1165,14 +1166,14 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setPadding(dp(5), dp(2), dp(5), dp(2))
-            background = shape(Color.rgb(92, 101, 163), 16)
+            background = shape(Color.WHITE, 16)
             isClickable = true
             isFocusable = true
             contentDescription = "Tap for Balance"
             setOnClickListener { toggleHomeBalance() }
         }
-        balanceHint.addView(text("Tap for Balance", 13f, Color.WHITE, true))
-        balanceHint.addView(text("◉̸", 15f, Color.WHITE, true).apply {
+        balanceHint.addView(text("Tap for Balance", 13f, red, true))
+        balanceHint.addView(text("◉̸", 15f, red, true).apply {
             setPadding(dp(5), 0, 0, 0)
             contentDescription = "ব্যালেন্স লুকানো"
         })
@@ -1201,6 +1202,12 @@ class MainActivity : Activity() {
                     orientation = LinearLayout.VERTICAL
                     gravity = Gravity.CENTER
                     setPadding(dp(3), dp(10), dp(3), dp(9))
+                    background = GradientDrawable().apply {
+                        setColor(Color.WHITE)
+                        cornerRadius = dp(18).toFloat()
+                        setStroke(dp(1), Color.rgb(238, 220, 220))
+                    }
+                    elevation = dp(2).toFloat()
                     setOnClickListener {
                         when (label) {
                             "পেমেন্ট", "বিল পে" -> action("বিদ্যুৎ")
@@ -1238,7 +1245,7 @@ class MainActivity : Activity() {
             setPadding(dp(20), dp(17), dp(20), dp(17))
             background = GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.rgb(42, 52, 125), Color.rgb(75, 91, 177), Color.rgb(32, 42, 105))
+                intArrayOf(Color.rgb(245, 35, 45), Color.rgb(210, 0, 18), Color.rgb(175, 0, 15))
             ).apply { cornerRadius = dp(20).toFloat() }
             setOnClickListener { showInfo("BPay Offers", "অফার ও ক্যাম্পেইন অনুমোদিতভাবে চালু হলে এখানে দেখানো হবে।") }
         }
@@ -1274,8 +1281,11 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             setPadding(dp(5), dp(7), dp(5), dp(7))
             background = GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(navy, Color.rgb(39, 48, 117))
-            ).apply { cornerRadii = floatArrayOf(dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), 0f, 0f, 0f, 0f) }
+                GradientDrawable.Orientation.LEFT_RIGHT, intArrayOf(Color.WHITE, Color.WHITE)
+            ).apply {
+                cornerRadii = floatArrayOf(dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), dp(24).toFloat(), 0f, 0f, 0f, 0f)
+                setStroke(dp(1), Color.rgb(238, 225, 225))
+            }
             elevation = dp(10).toFloat()
         }
         listOf("⌂" to "হোম", "♧" to "অফার", "▦" to "QR", "⌕" to "সার্চ", "☷" to "আরও").forEachIndexed { index, pair ->
@@ -1303,8 +1313,8 @@ class MainActivity : Activity() {
                     }
                 }
             }
-            item.addView(text(pair.first, 22f, Color.WHITE, true).apply { gravity = Gravity.CENTER })
-            item.addView(text(pair.second, 9f, Color.WHITE, index == 0).apply { gravity = Gravity.CENTER })
+            item.addView(text(pair.first, 22f, if (index == 0) red else ink, true).apply { gravity = Gravity.CENTER })
+            item.addView(text(pair.second, 9f, if (index == 0) red else ink, index == 0).apply { gravity = Gravity.CENTER })
             nav.addView(item, LinearLayout.LayoutParams(0, dp(48), 1f))
         }
         root.addView(nav)
