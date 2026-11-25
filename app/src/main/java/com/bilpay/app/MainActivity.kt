@@ -1171,7 +1171,7 @@ class MainActivity : Activity() {
             contentDescription = "Tap for Balance"
             setOnClickListener { toggleHomeBalance() }
         }
-        balanceHint.addView(text("Tap for Balance", 11.5f, Color.WHITE, true))
+        balanceHint.addView(text("Tap for Balance", 13f, Color.WHITE, true))
         balanceHint.addView(text("◉̸", 15f, Color.WHITE, true).apply {
             setPadding(dp(5), 0, 0, 0)
             contentDescription = "ব্যালেন্স লুকানো"
