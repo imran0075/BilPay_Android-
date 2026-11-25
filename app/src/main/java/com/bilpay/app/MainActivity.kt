@@ -1042,11 +1042,11 @@ class MainActivity : Activity() {
             text = "🔔"
             textSize = 20f
             gravity = Gravity.CENTER
-            setTextColor(Color.BLACK)
+            setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-                setStroke(dp(1), Color.rgb(224, 174, 61))
+                setColor(Color.rgb(48, 48, 48))
+                setStroke(dp(1), Color.rgb(65, 65, 65))
             }
             isClickable = true
             isFocusable = true
@@ -1077,7 +1077,7 @@ class MainActivity : Activity() {
         brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 15f
+            textSize = 12f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.rgb(75, 75, 75))
