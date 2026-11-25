@@ -1080,7 +1080,7 @@ class MainActivity : Activity() {
             textSize = 12f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.rgb(75, 75, 75))
+            setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
