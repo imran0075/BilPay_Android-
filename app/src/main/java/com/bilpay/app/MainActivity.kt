@@ -1215,7 +1215,7 @@ class MainActivity : Activity() {
             }, FrameLayout.LayoutParams(dp(19), dp(19), Gravity.CENTER))
             addView(View(this@MainActivity).apply {
                 setBackgroundColor(red)
-            }, FrameLayout.LayoutParams(dp(16), dp(1)) {
+            }, FrameLayout.LayoutParams(dp(16), dp(1)).apply {
                 gravity = Gravity.CENTER
             })
         }
