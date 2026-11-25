@@ -1010,7 +1010,7 @@ class MainActivity : Activity() {
         }
         val accountAvatar = TextView(this).apply {
             text = "U"
-            textSize = 17f
+            textSize = 19f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
@@ -1024,7 +1024,7 @@ class MainActivity : Activity() {
             contentDescription = "অ্যাকাউন্ট"
             setOnClickListener { showProfile() }
         }
-        accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(42), dp(42)))
+        accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(54), dp(54)))
         val accountName = text("ইউজার", 13f, Color.WHITE, true).apply {
             maxLines = 1
             gravity = Gravity.CENTER_VERTICAL
@@ -1078,7 +1078,7 @@ class MainActivity : Activity() {
         brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 12f
+            textSize = 10f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
