@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from pwdlib import PasswordHash
 from sqlalchemy import create_engine, select, String, Integer, Numeric, DateTime, ForeignKey, func, Boolean
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker, Session
+from sqlalchemy.exc import IntegrityError
 
 db_url = os.getenv("DATABASE_URL", "").strip()
 if not db_url:
@@ -490,6 +491,22 @@ def internal_wallet_transfer(
             "real_money": False,
             "message": "অভ্যন্তরীণ লেনদেন সম্পন্ন হয়েছে।"
         }
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(select(InternalWalletTransfer).where(
+            InternalWalletTransfer.idempotency_key == idempotency_key
+        ))
+        if existing is not None and existing.sender_wallet_id == sender_wallet.wallet_id and existing.recipient_wallet_id == recipient_wallet.wallet_id and Decimal(existing.amount) == payload.amount:
+            return {
+                "transaction_id": existing.transaction_id,
+                "status": existing.status,
+                "amount": str(existing.amount),
+                "fee": str(existing.fee),
+                "mode": "INTERNAL_ONLY",
+                "real_money": False,
+                "message": "আগের লেনদেনের ফলাফল ফেরত দেওয়া হয়েছে।"
+            }
+        raise HTTPException(status_code=409, detail="এই Idempotency-Key ইতিমধ্যে ব্যবহার হয়েছে।")
     except Exception:
         db.rollback()
         raise
