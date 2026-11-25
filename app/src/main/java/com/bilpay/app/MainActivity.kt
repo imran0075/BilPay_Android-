@@ -1057,34 +1057,36 @@ class MainActivity : Activity() {
             marginEnd = dp(10)
         })
 
-        val brandStack = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
+        // White circular B mark with a small overlapping menu badge, matching the supplied reference.
+        val brandStack = FrameLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(62), dp(62))
         }
         val brandMark = TextView(this).apply {
             text = "B"
-            textSize = 27f
+            textSize = 29f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(red)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(red)
-                setStroke(dp(2), Color.rgb(244, 211, 151))
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(235, 235, 235))
             }
+            elevation = dp(2).toFloat()
         }
-        brandStack.addView(brandMark, LinearLayout.LayoutParams(dp(48), dp(48)))
+        brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 17f
+            textSize = 15f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(Color.rgb(75, 75, 75))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(navy)
-                setStroke(dp(2), Color.rgb(244, 211, 151))
+                setColor(Color.WHITE)
+                setStroke(dp(1), Color.rgb(225, 225, 225))
             }
+            elevation = dp(4).toFloat()
             isClickable = true
             isFocusable = true
             contentDescription = "মেনু"
@@ -1103,10 +1105,8 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandStack.addView(menuButton, LinearLayout.LayoutParams(dp(34), dp(34)).apply {
-            topMargin = -dp(2)
-        })
-        rightActions.addView(brandStack)
+        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(30), dp(30), Gravity.BOTTOM or Gravity.END))
+
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
         header.addView(headerSpacer, LinearLayout.LayoutParams(dp(4), 1))
