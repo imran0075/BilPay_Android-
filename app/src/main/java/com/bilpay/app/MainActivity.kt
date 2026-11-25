@@ -1124,11 +1124,9 @@ class MainActivity : Activity() {
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(red)
-            }
-            elevation = dp(3).toFloat()
+            // Menu glyph stays white with no red circle or colored background.
+            background = null
+            elevation = 0f
             isClickable = true
             isFocusable = true
             contentDescription = "মেনু"
