@@ -79,7 +79,7 @@ class MainActivity : Activity() {
                 setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
                 setPrompt("BilPay QR কোডটি ক্যামেরার সামনে ধরুন")
                 setBeepEnabled(false)
-                setOrientationLocked(false)
+                setOrientationLocked(true)
                 setBarcodeImageEnabled(false)
             }.initiateScan()
         } catch (e: Exception) {
