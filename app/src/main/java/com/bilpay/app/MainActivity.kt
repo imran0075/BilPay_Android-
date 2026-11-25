@@ -982,9 +982,9 @@ class MainActivity : Activity() {
         val gold = Color.rgb(224, 174, 61)
         val ink = Color.rgb(30, 35, 54)
         val soft = Color.rgb(119, 126, 148)
-        window.statusBarColor = red
+        window.statusBarColor = Color.WHITE
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR or View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
         window.navigationBarColor = Color.WHITE
-        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1001,7 +1001,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(2), dp(3), dp(2), dp(14))
-            setBackgroundColor(red)
+            setBackgroundColor(Color.WHITE)
         }
 
         val accountIdentity = LinearLayout(this).apply {
@@ -1013,7 +1013,7 @@ class MainActivity : Activity() {
             textSize = 19f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
+            setTextColor(red)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
@@ -1025,7 +1025,7 @@ class MainActivity : Activity() {
             setOnClickListener { showProfile() }
         }
         accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(54), dp(54)))
-        val accountName = text("ইউজার", 13f, Color.WHITE, true).apply {
+        val accountName = text("ইউজার", 13f, ink, true).apply {
             maxLines = 1
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(9), 0, dp(4), 0)
@@ -1238,20 +1238,37 @@ class MainActivity : Activity() {
             page.addView(serviceRow)
         }
 
-        // Promotional banner (informational only; no fake offer is advertised).
+        // Promotional banner: red-and-white BPay campaign with a woman holding a phone.
         val promo = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(20), dp(17), dp(20), dp(17))
+            setPadding(dp(14), dp(10), dp(10), dp(10))
             background = GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.rgb(245, 35, 45), Color.rgb(210, 0, 18), Color.rgb(175, 0, 15))
+                intArrayOf(Color.rgb(220, 0, 20), Color.rgb(245, 45, 55), Color.WHITE)
             ).apply { cornerRadius = dp(20).toFloat() }
-            setOnClickListener { showInfo("BPay Offers", "অফার ও ক্যাম্পেইন অনুমোদিতভাবে চালু হলে এখানে দেখানো হবে।") }
+            setOnClickListener { showInfo("BPay", "এক অ্যাপে প্রয়োজনীয় সব সেবা।") }
         }
-        promo.addView(text("BPay • পেমেন্ট এখন আরও সহজ", 18f, Color.WHITE, true))
-        promo.addView(text("আপনার প্রয়োজনীয় সেবা—এক জায়গায়", 11f, Color.rgb(225, 229, 255)).apply { setPadding(0, dp(5), 0, 0) })
-        page.addView(promo, LinearLayout.LayoutParams(-1, dp(104)).apply {
+        val promoCopy = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+        }
+        promoCopy.addView(text("BPay", 26f, Color.WHITE, true))
+        promoCopy.addView(text("One App, All Services", 13f, Color.YELLOW, true).apply {
+            setPadding(0, dp(4), 0, 0)
+        })
+        promoCopy.addView(text("Fast • Secure • Reliable", 10f, Color.WHITE).apply {
+            setPadding(0, dp(4), 0, 0)
+        })
+        promo.addView(promoCopy, LinearLayout.LayoutParams(0, -1, 1f))
+        val womanPhone = TextView(this).apply {
+            text = "👩🏻  📱"
+            textSize = 39f
+            gravity = Gravity.CENTER
+            contentDescription = "মোবাইল হাতে BPay ব্যবহার করছেন একজন নারী"
+        }
+        promo.addView(womanPhone, LinearLayout.LayoutParams(dp(138), -1))
+        page.addView(promo, LinearLayout.LayoutParams(-1, dp(142)).apply {
             topMargin = dp(10); bottomMargin = dp(14)
         })
 
