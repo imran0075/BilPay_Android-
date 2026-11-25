@@ -41,6 +41,7 @@ class MainActivity : Activity() {
         when {
             lower == "সেবা" || lower == "আরও সেবা" -> showServices()
             lower == "প্রোফাইল" -> showProfile()
+            lower == "নিজস্ব ওয়ালেট" || lower == "ওয়ালেট" -> showInternalWallet()
             lower == "পরীক্ষামূলক ওয়ালেট" -> showSandboxWallet()
             lower == "সাপোর্ট" || lower == "সহায়তা" -> showSupport()
             lower == "হোম" -> showInfo("BPay", "আপনি BPay-এর হোম স্ক্রিনে আছেন।")
@@ -542,6 +543,59 @@ class MainActivity : Activity() {
         return code to body
     }
 
+    private fun showInternalWallet() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) { showInfo("লগইন প্রয়োজন", "নিজস্ব ওয়ালেট দেখতে আগে BilPay অ্যাকাউন্টে লগইন করুন।"); showAuthForm(false); return }
+        val progress = android.app.ProgressDialog(this).apply { setMessage("নিজস্ব ওয়ালেট যাচাই হচ্ছে…"); setCancelable(false); show() }
+        Thread {
+            var balance = ""; var walletId = ""; var error = ""
+            try {
+                val (code, body) = sandboxRequest("GET", "/api/v1/internal-wallet", token)
+                if (code in 200..299) {
+                    val wallet = JSONObject(body)
+                    balance = wallet.optString("available_balance", wallet.optString("balance", ""))
+                    walletId = wallet.optString("wallet_id")
+                    if (balance.isBlank() || walletId.isBlank()) error = "ওয়ালেটের তথ্য অসম্পূর্ণ।"
+                } else error = sandboxHttpMessage(code, "নিজস্ব ওয়ালেট যাচাই")
+            } catch (_: Exception) { error = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট পরীক্ষা করে আবার চেষ্টা করুন।" }
+            runOnUiThread {
+                progress.dismiss()
+                if (securePrefs().getString("access_token", null) != token) return@runOnUiThread
+                if (error.isNotBlank()) showInfo("ওয়ালেট লোড হয়নি", error) else {
+                    val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(14), dp(20), dp(8)) }
+                    val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(16), dp(16), dp(16)); background = GradientDrawable(GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(205, 0, 18), Color.rgb(150, 0, 15))).apply { cornerRadius = dp(18).toFloat() } }
+                    card.addView(text("BilPay Internal Wallet", 13f, Color.WHITE, true))
+                    card.addView(text("৳ $balance", 28f, Color.WHITE, true).apply { setPadding(0, dp(8), 0, dp(8)) })
+                    card.addView(text("Wallet ID: $walletId", 10f, Color.WHITE))
+                    panel.addView(card)
+                    panel.addView(text("এটি অভ্যন্তরীণ হিসাবের ব্যালেন্স; বাস্তব টাকা বা ব্যাংক আমানত নয়। Cash In, Cash Out ও বাহ্যিক পেমেন্ট চালু নেই।", 11f, muted).apply { setPadding(0, dp(12), 0, dp(8)) })
+                    android.app.AlertDialog.Builder(this).setTitle("নিজস্ব ওয়ালেট").setView(panel)
+                        .setNeutralButton("লেনদেন") { _, _ -> showInternalWalletHistory(token) }
+                        .setPositiveButton("রিফ্রেশ") { _, _ -> showInternalWallet() }.setNegativeButton("বন্ধ", null).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun showInternalWalletHistory(token: String) {
+        val progress = android.app.ProgressDialog(this).apply { setMessage("ওয়ালেটের হিসাব আনা হচ্ছে…"); setCancelable(false); show() }
+        Thread {
+            var items = org.json.JSONArray(); var error = ""
+            try { val (code, body) = sandboxRequest("GET", "/api/v1/internal-wallet/transactions?limit=50", token); if (code in 200..299) items = JSONObject(body).optJSONArray("items") ?: org.json.JSONArray() else error = sandboxHttpMessage(code, "লেনদেন আনা") }
+            catch (_: Exception) { error = "সার্ভারে সংযোগ করা যায়নি।" }
+            runOnUiThread {
+                progress.dismiss()
+                if (error.isNotBlank()) showInfo("লেনদেন লোড হয়নি", error)
+                else if (items.length() == 0) showInfo("ওয়ালেটের হিসাব", "এখনো কোনো অভ্যন্তরীণ লেনদেন নেই।")
+                else {
+                    val rows = ArrayList<String>()
+                    for (i in 0 until items.length()) { val item = items.optJSONObject(i) ?: continue; val incoming = item.optString("direction") == "CREDIT"; rows.add((if (incoming) "জমা " else "খরচ ") + "৳" + item.optString("amount") + " • " + item.optString("status") + "\n" + item.optString("transaction_id")) }
+                    val view = TextView(this).apply { text = rows.joinToString("\n\n"); textSize = 12f; setTextColor(dark); setPadding(dp(18), dp(14), dp(18), dp(14)) }
+                    android.app.AlertDialog.Builder(this).setTitle("নিজস্ব ওয়ালেট • লেনদেন").setView(ScrollView(this).apply { addView(view) }).setPositiveButton("বন্ধ", null).show()
+                }
+            }
+        }.start()
+    }
     private fun showSandboxWallet() {
         val token = securePrefs().getString("access_token", null)
         if (token.isNullOrBlank()) {
@@ -1006,21 +1060,12 @@ class MainActivity : Activity() {
             var fetchedBalance = ""
             var error = ""
             try {
-                val (statusCode, statusBody) = sandboxRequest("GET", "/api/v1/sandbox/status", token)
-                if (statusCode !in 200..299) error = sandboxHttpMessage(statusCode, "Sandbox সার্ভার যাচাই")
-                else if (!JSONObject(statusBody).optBoolean("sandbox_enabled", false)) {
-                    error = "Sandbox Wallet বর্তমানে চালু নেই।"
-                } else {
-                    val (profileCode, profileBody) = sandboxRequest("GET", "/api/v1/auth/me", token)
-                    if (profileCode !in 200..299) error = sandboxHttpMessage(profileCode, "অ্যাকাউন্ট যাচাই")
-                    else {
-                        val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/sandbox/wallet", token)
-                        if (walletCode in 200..299) {
-                            fetchedBalance = JSONObject(walletBody).optString("balance", "")
-                            if (fetchedBalance.isBlank()) error = "সার্ভার ব্যালেন্সের তথ্য দেয়নি।"
-                        } else error = sandboxHttpMessage(walletCode, "Sandbox ব্যালেন্স আনা")
-                    }
-                }
+                val (walletCode, walletBody) = sandboxRequest("GET", "/api/v1/internal-wallet", token)
+                if (walletCode in 200..299) {
+                    val wallet = JSONObject(walletBody)
+                    fetchedBalance = wallet.optString("available_balance", wallet.optString("balance", ""))
+                    if (fetchedBalance.isBlank()) error = "সার্ভার ব্যালেন্সের তথ্য দেয়নি।"
+                } else error = sandboxHttpMessage(walletCode, "নিজস্ব ওয়ালেট ব্যালেন্স আনা")
             } catch (_: Exception) {
                 error = "সার্ভারে সংযোগ করা যায়নি। ইন্টারনেট পরীক্ষা করে আবার চেষ্টা করুন।"
             }
@@ -1163,11 +1208,12 @@ class MainActivity : Activity() {
             setOnClickListener {
                 android.app.AlertDialog.Builder(this@MainActivity)
                     .setTitle("BPay মেনু")
-                    .setItems(arrayOf("প্রোফাইল", "ইনবক্স • লেনদেন", "সকল সেবা", "সাপোর্ট")) { _, which ->
+                    .setItems(arrayOf("প্রোফাইল", "নিজস্ব ওয়ালেট", "ইনবক্স • লেনদেন", "সকল সেবা", "সাপোর্ট")) { _, which ->
                         when (which) {
                             0 -> showProfile()
-                            1 -> showInbox()
-                            2 -> showServices()
+                            1 -> showInternalWallet()
+                            2 -> showInbox()
+                            3 -> showServices()
                             else -> showSupport()
                         }
                     }
