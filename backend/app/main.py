@@ -278,7 +278,8 @@ def internal_wallet_balance(db: Session, wallet_id: str) -> Decimal:
         InternalWalletLedgerEntry.wallet_id == wallet_id,
         InternalWalletLedgerEntry.entry_type == "DEBIT"
     ))
-    return Decimal(str(credits or 0)) - Decimal(str(debits or 0))
+    balance = Decimal(str(credits or 0)) - Decimal(str(debits or 0))
+    return balance.quantize(Decimal("0.01"))
 
 
 def ensure_internal_wallet(db: Session, user: User) -> InternalWalletAccount:
