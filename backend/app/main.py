@@ -93,6 +93,41 @@ class SandboxTransfer(Base):
     mode: Mapped[str] = mapped_column(String(20), default="SANDBOX")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
+class InternalWalletAccount(Base):
+    __tablename__ = "internal_wallet_accounts"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    wallet_id: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), unique=True, index=True)
+    currency: Mapped[str] = mapped_column(String(3), default="BDT")
+    status: Mapped[str] = mapped_column(String(16), default="ACTIVE")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class InternalWalletTransfer(Base):
+    __tablename__ = "internal_wallet_transfers"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    sender_wallet_id: Mapped[str] = mapped_column(ForeignKey("internal_wallet_accounts.wallet_id"), index=True)
+    recipient_wallet_id: Mapped[str] = mapped_column(ForeignKey("internal_wallet_accounts.wallet_id"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    fee: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("0.00"))
+    status: Mapped[str] = mapped_column(String(20), default="POSTED")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+
+class InternalWalletLedgerEntry(Base):
+    __tablename__ = "internal_wallet_ledger_entries"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    entry_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    transaction_id: Mapped[str] = mapped_column(ForeignKey("internal_wallet_transfers.transaction_id"), index=True)
+    wallet_id: Mapped[str] = mapped_column(ForeignKey("internal_wallet_accounts.wallet_id"), index=True)
+    entry_type: Mapped[str] = mapped_column(String(10))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    currency: Mapped[str] = mapped_column(String(3), default="BDT")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
+
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -220,9 +255,53 @@ class PaymentIntentRequest(BaseModel):
 class SandboxGrantRequest(BaseModel):
     user_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+class InternalWalletTransferRequest(BaseModel):
+    recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
+
+
 class SandboxTransferRequest(BaseModel):
     recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+
+def internal_wallet_transfers_enabled():
+    return os.getenv("BILPAY_INTERNAL_WALLET_TRANSFERS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def internal_wallet_balance(db: Session, wallet_id: str) -> Decimal:
+    credits = db.scalar(select(func.coalesce(func.sum(InternalWalletLedgerEntry.amount), 0)).where(
+        InternalWalletLedgerEntry.wallet_id == wallet_id,
+        InternalWalletLedgerEntry.entry_type == "CREDIT"
+    ))
+    debits = db.scalar(select(func.coalesce(func.sum(InternalWalletLedgerEntry.amount), 0)).where(
+        InternalWalletLedgerEntry.wallet_id == wallet_id,
+        InternalWalletLedgerEntry.entry_type == "DEBIT"
+    ))
+    return Decimal(str(credits or 0)) - Decimal(str(debits or 0))
+
+
+def ensure_internal_wallet(db: Session, user: User) -> InternalWalletAccount:
+    wallet = db.scalar(select(InternalWalletAccount).where(InternalWalletAccount.user_id == user.id))
+    if wallet is not None:
+        return wallet
+    wallet = InternalWalletAccount(
+        wallet_id="BPW-" + uuid.uuid4().hex[:20].upper(),
+        user_id=user.id,
+        currency="BDT",
+        status="ACTIVE"
+    )
+    db.add(wallet)
+    try:
+        db.commit()
+        db.refresh(wallet)
+        return wallet
+    except Exception:
+        db.rollback()
+        wallet = db.scalar(select(InternalWalletAccount).where(InternalWalletAccount.user_id == user.id))
+        if wallet is None:
+            raise
+        return wallet
+
 
 def sandbox_enabled():
     if os.getenv("BILPAY_SANDBOX_LEDGER_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}:
@@ -287,6 +366,151 @@ def change_password(payload: PasswordChangeRequest, user: User = Depends(current
     user.password_hash = password_hasher.hash(payload.new_password)
     db.commit()
     return {"ok": True, "message": "পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপত্তার জন্য আবার লগইন করুন।"}
+
+
+@app.get("/api/v1/internal-wallet/status")
+def internal_wallet_status():
+    return {
+        "wallet_accounts_enabled": True,
+        "internal_transfers_enabled": internal_wallet_transfers_enabled(),
+        "live_transactions_enabled": False,
+        "external_funding_enabled": False,
+        "withdrawals_enabled": False,
+        "mode": "INTERNAL_ONLY",
+        "message": "ওয়ালেট অ্যাকাউন্ট তৈরি করা যাবে; বাস্তব টাকা জমা/উত্তোলন ও বাহ্যিক পেমেন্ট চালু নেই।"
+    }
+
+
+@app.get("/api/v1/internal-wallet")
+def get_internal_wallet(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    wallet = ensure_internal_wallet(db, user)
+    balance = internal_wallet_balance(db, wallet.wallet_id)
+    return {
+        "wallet_id": wallet.wallet_id,
+        "balance": str(balance),
+        "available_balance": str(balance),
+        "currency": wallet.currency,
+        "status": wallet.status,
+        "mode": "INTERNAL_ONLY",
+        "real_money": False,
+        "redeemable": False,
+        "funding_enabled": False,
+        "withdrawals_enabled": False,
+        "transfers_enabled": internal_wallet_transfers_enabled()
+    }
+
+
+@app.post("/api/v1/internal-wallet/transfers")
+def internal_wallet_transfer(
+    payload: InternalWalletTransferRequest,
+    idempotency_key: str = Header(..., alias="Idempotency-Key", min_length=8, max_length=100),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db)
+):
+    if not internal_wallet_transfers_enabled():
+        raise HTTPException(status_code=503, detail="Internal wallet transfer এখনো চালু করা হয়নি।")
+    if payload.recipient_phone == user.phone:
+        raise HTTPException(status_code=400, detail="নিজের ওয়ালেটে টাকা পাঠানো যাবে না।")
+
+    sender_wallet = ensure_internal_wallet(db, user)
+    recipient = db.scalar(select(User).where(User.phone == payload.recipient_phone))
+    if recipient is None:
+        raise HTTPException(status_code=404, detail="প্রাপকের BilPay অ্যাকাউন্ট পাওয়া যায়নি।")
+    recipient_wallet = ensure_internal_wallet(db, recipient)
+
+    existing = db.scalar(select(InternalWalletTransfer).where(
+        InternalWalletTransfer.idempotency_key == idempotency_key
+    ))
+    if existing is not None:
+        if (existing.sender_wallet_id != sender_wallet.wallet_id or
+            existing.recipient_wallet_id != recipient_wallet.wallet_id or
+            Decimal(existing.amount) != payload.amount):
+            raise HTTPException(status_code=409, detail="এই Idempotency-Key আগে অন্য অনুরোধে ব্যবহার হয়েছে।")
+        return {
+            "transaction_id": existing.transaction_id,
+            "status": existing.status,
+            "amount": str(existing.amount),
+            "fee": str(existing.fee),
+            "mode": "INTERNAL_ONLY",
+            "real_money": False,
+            "message": "আগের লেনদেনের ফলাফল ফেরত দেওয়া হয়েছে।"
+        }
+
+    db.commit()
+    try:
+        with db.begin():
+            locked = db.scalars(select(InternalWalletAccount).where(
+                InternalWalletAccount.wallet_id.in_([sender_wallet.wallet_id, recipient_wallet.wallet_id])
+            ).order_by(InternalWalletAccount.wallet_id).with_for_update()).all()
+            wallet_map = {item.wallet_id: item for item in locked}
+            sender_locked = wallet_map.get(sender_wallet.wallet_id)
+            recipient_locked = wallet_map.get(recipient_wallet.wallet_id)
+            if sender_locked is None or recipient_locked is None:
+                raise HTTPException(status_code=409, detail="ওয়ালেট অ্যাকাউন্ট পাওয়া যায়নি।")
+            if sender_locked.status != "ACTIVE" or recipient_locked.status != "ACTIVE":
+                raise HTTPException(status_code=403, detail="একটি ওয়ালেট বর্তমানে লেনদেনের জন্য সক্রিয় নয়।")
+            current_balance = internal_wallet_balance(db, sender_locked.wallet_id)
+            if current_balance < payload.amount:
+                raise HTTPException(status_code=400, detail="পর্যাপ্ত ব্যালেন্স নেই। কোনো টাকা কাটা হয়নি।")
+            transaction_id = "BPI-" + uuid.uuid4().hex[:24].upper()
+            db.add(InternalWalletTransfer(
+                transaction_id=transaction_id,
+                idempotency_key=idempotency_key,
+                sender_wallet_id=sender_locked.wallet_id,
+                recipient_wallet_id=recipient_locked.wallet_id,
+                amount=payload.amount,
+                fee=Decimal("0.00"),
+                status="POSTED"
+            ))
+            db.flush()
+            db.add_all([
+                InternalWalletLedgerEntry(
+                    entry_id=uuid.uuid4().hex,
+                    transaction_id=transaction_id,
+                    wallet_id=sender_locked.wallet_id,
+                    entry_type="DEBIT",
+                    amount=payload.amount,
+                    currency="BDT"
+                ),
+                InternalWalletLedgerEntry(
+                    entry_id=uuid.uuid4().hex,
+                    transaction_id=transaction_id,
+                    wallet_id=recipient_locked.wallet_id,
+                    entry_type="CREDIT",
+                    amount=payload.amount,
+                    currency="BDT"
+                )
+            ])
+        return {
+            "transaction_id": transaction_id,
+            "status": "POSTED",
+            "amount": str(payload.amount),
+            "fee": "0.00",
+            "mode": "INTERNAL_ONLY",
+            "real_money": False,
+            "message": "অভ্যন্তরীণ লেনদেন সম্পন্ন হয়েছে।"
+        }
+    except Exception:
+        db.rollback()
+        raise
+
+
+@app.get("/api/v1/internal-wallet/transactions")
+def internal_wallet_transactions(user: User = Depends(current_user), db: Session = Depends(get_db), limit: int = 20):
+    limit = max(1, min(limit, 100))
+    wallet = ensure_internal_wallet(db, user)
+    rows = db.scalars(select(InternalWalletTransfer).where(
+        (InternalWalletTransfer.sender_wallet_id == wallet.wallet_id) |
+        (InternalWalletTransfer.recipient_wallet_id == wallet.wallet_id)
+    ).order_by(InternalWalletTransfer.created_at.desc()).limit(limit)).all()
+    return {"items": [{
+        "transaction_id": row.transaction_id,
+        "direction": "DEBIT" if row.sender_wallet_id == wallet.wallet_id else "CREDIT",
+        "amount": str(row.amount),
+        "fee": str(row.fee),
+        "status": row.status,
+        "created_at": row.created_at.isoformat()
+    } for row in rows], "mode": "INTERNAL_ONLY", "real_money": False}
 
 
 @app.get("/api/v1/sandbox/status")
