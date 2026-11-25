@@ -76,6 +76,7 @@ class MainActivity : Activity() {
     private fun launchQrCameraScanner() {
         try {
             IntentIntegrator(this).apply {
+                setCaptureActivity(BilPayCaptureActivity::class.java)
                 setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
                 setPrompt("BilPay QR কোডটি ক্যামেরার সামনে ধরুন")
                 setBeepEnabled(false)
