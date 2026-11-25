@@ -61,6 +61,19 @@ class MainActivity : Activity() {
 
 
     private fun startQrScanner() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.CAMERA
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this, arrayOf(android.Manifest.permission.CAMERA), 4102
+            )
+            return
+        }
+        launchQrCameraScanner()
+    }
+
+    private fun launchQrCameraScanner() {
         try {
             IntentIntegrator(this).apply {
                 setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
@@ -70,7 +83,23 @@ class MainActivity : Activity() {
                 setBarcodeImageEnabled(false)
             }.initiateScan()
         } catch (e: Exception) {
-            showInfo("QR স্ক্যানার চালু হয়নি", "ক্যামেরার অনুমতি ও অ্যাপ ইনস্টলেশন পরীক্ষা করে আবার চেষ্টা করুন।")
+            showInfo("QR স্ক্যানার চালু হয়নি", "ক্যামেরার অনুমতি দিন এবং আবার QR অপশনে চাপ দিন।")
+        }
+    }
+
+    @Deprecated("Deprecated in Android, retained for runtime camera permission callback")
+    override fun onRequestPermissionsResult(
+        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 4102) {
+            if (grantResults.isNotEmpty() &&
+                grantResults[0] == android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                launchQrCameraScanner()
+            } else {
+                showInfo("ক্যামেরার অনুমতি প্রয়োজন", "QR স্ক্যান করতে BilPay-কে ক্যামেরা ব্যবহারের অনুমতি দিন।")
+            }
         }
     }
 
