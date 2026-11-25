@@ -1164,7 +1164,7 @@ class MainActivity : Activity() {
         val balanceHint = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(9), dp(5), dp(9), dp(5))
+            setPadding(dp(5), dp(2), dp(5), dp(2))
             background = shape(Color.rgb(92, 101, 163), 16)
             isClickable = true
             isFocusable = true
