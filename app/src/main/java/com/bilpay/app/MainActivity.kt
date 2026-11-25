@@ -1143,7 +1143,7 @@ class MainActivity : Activity() {
             }.start()
         }
 
-        // Balance card: never display a fabricated or live-looking amount.
+        // Balance card: options on the left; balance visibility control on the right.
         val balance = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(18))
@@ -1157,8 +1157,6 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
         }
-        balanceTop.addView(text("Total Balance", 13f, Color.rgb(206, 214, 245), true))
-        balanceTop.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
         val balanceMore = TextView(this).apply {
             text = "•••"
             textSize = 18f
@@ -1168,7 +1166,7 @@ class MainActivity : Activity() {
             contentDescription = "ব্যালেন্স অপশন"
             isClickable = true
             isFocusable = true
-            setPadding(dp(10), 0, dp(2), 0)
+            setPadding(0, 0, dp(10), 0)
             setOnClickListener {
                 android.app.AlertDialog.Builder(this@MainActivity)
                     .setTitle("ব্যালেন্স")
@@ -1182,6 +1180,7 @@ class MainActivity : Activity() {
             }
         }
         balanceTop.addView(balanceMore, LinearLayout.LayoutParams(dp(42), dp(36)))
+        balanceTop.addView(text("Total Balance", 13f, Color.rgb(206, 214, 245), true))
         balance.addView(balanceTop)
 
         val balanceBottom = LinearLayout(this).apply {
@@ -1203,8 +1202,14 @@ class MainActivity : Activity() {
             isFocusable = true
             contentDescription = "Tap for Balance"
             setOnClickListener { toggleHomeBalance() }
-            addView(text("Tap for Balance", 13f, Color.WHITE, true))
         }
+        val balanceEyeIcon = text("◉̸", 19f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, 0, dp(7), 0)
+            contentDescription = "ব্যালেন্স লুকানো"
+        }
+        balanceHint.addView(balanceEyeIcon, LinearLayout.LayoutParams(-2, dp(24)))
+        balanceHint.addView(text("Tap for Balance", 13f, Color.WHITE, true))
         balanceBottom.addView(balanceHint)
         balance.addView(balanceBottom)
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
