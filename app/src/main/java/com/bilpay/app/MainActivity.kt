@@ -1079,12 +1079,15 @@ class MainActivity : Activity() {
         brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
-            textSize = 16f
+            textSize = 17f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
-            setTextColor(red)
-            background = null
-            elevation = 0f
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(red)
+            }
+            elevation = dp(3).toFloat()
             isClickable = true
             isFocusable = true
             contentDescription = "মেনু"
@@ -1103,7 +1106,7 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.BOTTOM or Gravity.END))
+        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(27), dp(27), Gravity.BOTTOM or Gravity.END))
         rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(54), dp(54)))
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
@@ -1178,14 +1181,15 @@ class MainActivity : Activity() {
             ).apply { cornerRadius = dp(20).toFloat() }
             elevation = dp(4).toFloat()
         }
-        balance.addView(text("Total Balance", 13f, Color.WHITE, true))
+        balance.addView(text("Total Balance", 13f, Color.WHITE, true).apply {
+            gravity = Gravity.CENTER
+        }, LinearLayout.LayoutParams(-1, -2))
 
         val balanceControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             setPadding(0, dp(6), 0, 0)
         }
-        balanceControls.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
 
         val balanceHint = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -1206,7 +1210,7 @@ class MainActivity : Activity() {
         balance.addView(balanceControls)
 
         val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true).apply {
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, 0)
         }
         homeBalanceText = balanceAmountText
