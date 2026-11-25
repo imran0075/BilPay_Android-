@@ -15,6 +15,7 @@ import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.*
+import com.google.zxing.integration.android.IntentIntegrator
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -50,11 +51,51 @@ class MainActivity : Activity() {
                 lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
             lower.contains("সেন্ড মানি") -> openSandboxTransferForm(false)
             lower.contains("ফান্ড ট্রান্সফার") -> openSandboxTransferForm(true)
-            lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") || lower.contains("qr") ||
+            lower == "qr" || lower.contains("qr") -> startQrScanner()
+            lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") ||
                 lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
                 showInfo("সেবা চালুর অপেক্ষায়", "Cash In, Cash Out ও বাহ্যিক ট্রান্সফার এখনো চালু নয়। অনুমোদিত আর্থিক অংশীদার API ও চুক্তি যুক্ত হলে বাস্তব সেবা চালু হবে।")
             else -> showInfo("সেবা প্রস্তুত হচ্ছে", "এই সুবিধাটি বাস্তবভাবে চালুর জন্য প্রয়োজনীয় সার্ভার বা সেবাদাতা সংযোগ এখনো সম্পন্ন হয়নি।")
         }
+    }
+
+
+    private fun startQrScanner() {
+        try {
+            IntentIntegrator(this).apply {
+                setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+                setPrompt("BilPay QR কোডটি ক্যামেরার সামনে ধরুন")
+                setBeepEnabled(false)
+                setOrientationLocked(false)
+                setBarcodeImageEnabled(false)
+            }.initiateScan()
+        } catch (e: Exception) {
+            showInfo("QR স্ক্যানার চালু হয়নি", "ক্যামেরার অনুমতি ও অ্যাপ ইনস্টলেশন পরীক্ষা করে আবার চেষ্টা করুন।")
+        }
+    }
+
+    @Deprecated("Deprecated in Android, retained for the ZXing scanner result callback")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val result = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
+        if (result != null) {
+            if (result.contents.isNullOrBlank()) {
+                showInfo("QR স্ক্যান বাতিল", "আপনি স্ক্যান বন্ধ করেছেন। চাইলে আবার QR বাটনে চাপ দিন।")
+            } else {
+                val payload = result.contents.trim()
+                android.app.AlertDialog.Builder(this)
+                    .setTitle("QR কোড পাওয়া গেছে")
+                    .setMessage(payload + "\\n\\nনিরাপত্তা: QR-এর তথ্য যাচাই না করে কাউকে টাকা পাঠাবেন না। এই স্ক্যানটি এখন শুধু QR তথ্য পড়বে; বাস্তব পেমেন্টের জন্য অনুমোদিত মার্চেন্ট/পেমেন্ট API সংযোগ প্রয়োজন।")
+                    .setPositiveButton("ঠিক আছে", null)
+                    .setNeutralButton("কপি করুন") { _, _ ->
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("BilPay QR", payload))
+                        showInfo("কপি হয়েছে", "QR-এর তথ্য ক্লিপবোর্ডে কপি করা হয়েছে।")
+                    }
+                    .show()
+            }
+            return
+        }
+        super.onActivityResult(requestCode, resultCode, data)
     }
 
     private fun showInfo(title: String, message: String) {
@@ -1328,7 +1369,7 @@ class MainActivity : Activity() {
                     when (pair.second) {
                         "হোম" -> scroll.smoothScrollTo(0, 0)
                         "অফার" -> showInfo("BPay Offers", "অফার সুবিধা চালুর প্রস্তুতি চলছে।")
-                        "QR" -> showInfo("QR Payment", "QR পেমেন্ট অনুমোদিত মার্চেন্ট API যুক্ত হলে চালু হবে।")
+                        "QR" -> startQrScanner()
                         "সার্চ" -> showServices()
                         else -> android.app.AlertDialog.Builder(this@MainActivity)
                             .setTitle("আরও সেবা")
