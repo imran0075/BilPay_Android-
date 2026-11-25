@@ -1159,41 +1159,23 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, dp(10), 0, 0)
         }
-        val balanceMore = TextView(this).apply {
-            text = "•••"
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            contentDescription = "ব্যালেন্স অপশন"
-            isClickable = true
-            isFocusable = true
-            setOnClickListener {
-                android.app.AlertDialog.Builder(this@MainActivity)
-                    .setTitle("ব্যালেন্স")
-                    .setItems(arrayOf("ব্যালেন্স দেখুন", "ব্যালেন্স লুকান")) { _, which ->
-                        if (which == 0) {
-                            if (!homeBalanceVisible) toggleHomeBalance()
-                        } else resetHomeBalance()
-                    }
-                    .setNegativeButton("বন্ধ", null)
-                    .show()
-            }
-        }
-        balanceControls.addView(balanceMore, LinearLayout.LayoutParams(dp(42), dp(38)))
         balanceControls.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
 
         val balanceHint = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
-            setPadding(dp(12), dp(8), dp(12), dp(8))
-            background = shape(Color.rgb(92, 101, 163), 20)
+            setPadding(dp(9), dp(5), dp(9), dp(5))
+            background = shape(Color.rgb(92, 101, 163), 16)
             isClickable = true
             isFocusable = true
             contentDescription = "Tap for Balance"
             setOnClickListener { toggleHomeBalance() }
         }
-        balanceHint.addView(text("Tap for Balance", 13f, Color.WHITE, true))
+        balanceHint.addView(text("Tap for Balance", 11.5f, Color.WHITE, true))
+        balanceHint.addView(text("◉̸", 15f, Color.WHITE, true).apply {
+            setPadding(dp(5), 0, 0, 0)
+            contentDescription = "ব্যালেন্স লুকানো"
+        })
         balanceControls.addView(balanceHint)
         balance.addView(balanceControls)
 
