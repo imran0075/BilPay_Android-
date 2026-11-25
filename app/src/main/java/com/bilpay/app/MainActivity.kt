@@ -198,6 +198,7 @@ class MainActivity : Activity() {
                         .setPositiveButton("লগআউট") { _, _ ->
                             prefs.edit().clear().apply()
                             resetHomeBalance()
+                            recreate()
                             showInfo("লগআউট হয়েছে", "এই ফোন থেকে আপনার BPay অ্যাকাউন্ট বিচ্ছিন্ন করা হয়েছে।")
                         }.show()
                 }
@@ -333,9 +334,12 @@ class MainActivity : Activity() {
                 progress.dismiss()
                 if (success && clearSession) {
                     securePrefs().edit().clear().apply()
+                    resetHomeBalance()
+                    recreate()
                     showInfo("সফল", message)
                     showAuthForm(false)
                 } else {
+                    if (success && path == "/api/v1/auth/profile") recreate()
                     showInfo(if (success) "সফল" else "সমস্যা", message)
                 }
             }
@@ -422,7 +426,11 @@ class MainActivity : Activity() {
                         } catch (e: Exception) { message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি") }
                         runOnUiThread {
                             progress.dismiss()
-                            if (ok) resetHomeBalance()
+                            if (ok) {
+                                resetHomeBalance()
+                                // Rebuild the home header with the newly authenticated account token.
+                                recreate()
+                            }
                             showInfo(if (ok) "সফল" else "অ্যাকাউন্ট সমস্যা", message)
                         }
                     }.start()
