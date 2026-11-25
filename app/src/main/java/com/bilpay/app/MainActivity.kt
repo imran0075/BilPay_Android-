@@ -1011,21 +1011,21 @@ class MainActivity : Activity() {
         }
         val accountAvatar = TextView(this).apply {
             text = "U"
-            textSize = 19f
+            textSize = 16f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(red)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.rgb(255, 241, 242))
-                setStroke(dp(2), red)
+                setStroke(dp(1), red)
             }
             isClickable = true
             isFocusable = true
             contentDescription = "অ্যাকাউন্ট"
             setOnClickListener { showProfile() }
         }
-        accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(54), dp(54)))
+        accountIdentity.addView(accountAvatar, LinearLayout.LayoutParams(dp(42), dp(42)))
         val accountName = text("ইউজার", 13f, ink, true).apply {
             maxLines = 1
             gravity = Gravity.CENTER_VERTICAL
@@ -1044,7 +1044,7 @@ class MainActivity : Activity() {
             setImageResource(android.R.drawable.ic_popup_reminder)
             setColorFilter(red)
             scaleType = ImageView.ScaleType.CENTER_INSIDE
-            setPadding(dp(15), dp(15), dp(15), dp(15))
+            setPadding(dp(11), dp(11), dp(11), dp(11))
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.WHITE)
@@ -1055,17 +1055,17 @@ class MainActivity : Activity() {
             contentDescription = "নোটিফিকেশন"
             setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
         }
-        rightActions.addView(notificationButton, LinearLayout.LayoutParams(dp(54), dp(54)).apply {
+        rightActions.addView(notificationButton, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
             marginEnd = dp(10)
         })
 
-        // Keep the complete B logo circle exactly the same 54dp size as the user avatar and bell.
+        // Keep the user avatar, notification bell, and B logo circles equal-sized and compact.
         val brandStack = FrameLayout(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(54), dp(54))
+            layoutParams = LinearLayout.LayoutParams(dp(42), dp(42))
         }
         val brandMark = TextView(this).apply {
             text = "B"
-            textSize = 29f
+            textSize = 23f
             setTypeface(null, Typeface.BOLD)
             gravity = Gravity.CENTER
             setTextColor(red)
@@ -1076,7 +1076,7 @@ class MainActivity : Activity() {
             }
             elevation = dp(2).toFloat()
         }
-        brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(54), dp(54), Gravity.TOP or Gravity.START))
+        brandStack.addView(brandMark, FrameLayout.LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.START))
         val menuButton = TextView(this).apply {
             text = "☰"
             textSize = 17f
@@ -1106,7 +1106,7 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(27), dp(27), Gravity.BOTTOM or Gravity.END))
+        brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(22), dp(22), Gravity.BOTTOM or Gravity.END))
         rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(54), dp(54)))
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
