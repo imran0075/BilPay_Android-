@@ -1106,7 +1106,7 @@ class MainActivity : Activity() {
             }
         }
         brandStack.addView(menuButton, FrameLayout.LayoutParams(dp(30), dp(30), Gravity.BOTTOM or Gravity.END))
-
+        rightActions.addView(brandStack, LinearLayout.LayoutParams(dp(62), dp(62)))
 
         header.addView(accountIdentity, LinearLayout.LayoutParams(0, dp(82), 1f))
         header.addView(headerSpacer, LinearLayout.LayoutParams(dp(4), 1))
