@@ -9,6 +9,7 @@ import android.text.method.PasswordTransformationMethod
 import org.json.JSONObject
 import android.os.Bundle
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
@@ -593,7 +594,7 @@ class MainActivity : Activity() {
             text = "↻  ব্যালেন্স আবার যাচাই"
             setOnClickListener { showSandboxWallet() }
         }
-        panel.addView(refresh, LinearLayout.LayoutParams(-1, dp(46)).apply { topMargin = dp(8) })
+        panel.addView(refresh, LinearLayout.LayoutParams(-1, dp(38)).apply { topMargin = dp(8) })
         if (isAdmin) {
             val adminGrant = Button(this).apply {
                 text = "Admin: Sandbox ব্যালেন্স যোগ"
@@ -1147,7 +1148,7 @@ class MainActivity : Activity() {
         // Balance card: title on top; options and balance hint aligned across the middle.
         val balance = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(18), dp(20), dp(18))
+            setPadding(dp(16), dp(12), dp(16), dp(12))
             background = GradientDrawable(
                 GradientDrawable.Orientation.TL_BR, intArrayOf(Color.rgb(245, 35, 45), Color.rgb(210, 0, 18), Color.rgb(175, 0, 15))
             ).apply { cornerRadius = dp(24).toFloat() }
@@ -1158,7 +1159,7 @@ class MainActivity : Activity() {
         val balanceControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(10), 0, 0)
+            setPadding(0, dp(6), 0, 0)
         }
         balanceControls.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
 
@@ -1238,37 +1239,15 @@ class MainActivity : Activity() {
             page.addView(serviceRow)
         }
 
-        // Promotional banner: red-and-white BPay campaign with a woman holding a phone.
-        val promo = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(14), dp(10), dp(10), dp(10))
-            background = GradientDrawable(
-                GradientDrawable.Orientation.LEFT_RIGHT,
-                intArrayOf(Color.rgb(220, 0, 20), Color.rgb(245, 45, 55), Color.WHITE)
-            ).apply { cornerRadius = dp(20).toFloat() }
+        // Promotional banner: real BPay campaign artwork with a woman holding the phone.
+        val promo = ImageView(this).apply {
+            setImageBitmap(BitmapFactory.decodeResource(resources, R.drawable.bpay_woman_phone))
+            scaleType = ImageView.ScaleType.FIT_XY
+            contentDescription = "একজন নারী হাতে BPay মোবাইল ধরে আছেন"
+            isClickable = true
             setOnClickListener { showInfo("BPay", "এক অ্যাপে প্রয়োজনীয় সব সেবা।") }
         }
-        val promoCopy = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        promoCopy.addView(text("BPay", 26f, Color.WHITE, true))
-        promoCopy.addView(text("One App, All Services", 13f, Color.YELLOW, true).apply {
-            setPadding(0, dp(4), 0, 0)
-        })
-        promoCopy.addView(text("Fast • Secure • Reliable", 10f, Color.WHITE).apply {
-            setPadding(0, dp(4), 0, 0)
-        })
-        promo.addView(promoCopy, LinearLayout.LayoutParams(0, -1, 1f))
-        val womanPhone = TextView(this).apply {
-            text = "👩🏻  📱"
-            textSize = 39f
-            gravity = Gravity.CENTER
-            contentDescription = "মোবাইল হাতে BPay ব্যবহার করছেন একজন নারী"
-        }
-        promo.addView(womanPhone, LinearLayout.LayoutParams(dp(138), -1))
-        page.addView(promo, LinearLayout.LayoutParams(-1, dp(142)).apply {
+        page.addView(promo, LinearLayout.LayoutParams(-1, dp(112)).apply {
             topMargin = dp(10); bottomMargin = dp(14)
         })
 
