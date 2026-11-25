@@ -1143,7 +1143,7 @@ class MainActivity : Activity() {
             }.start()
         }
 
-        // Balance card: options on the left; balance visibility control on the right.
+        // Balance card: title on top; options and balance hint aligned across the middle.
         val balance = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(20), dp(18), dp(20), dp(18))
@@ -1151,11 +1151,13 @@ class MainActivity : Activity() {
                 GradientDrawable.Orientation.TL_BR, intArrayOf(navy2, navy, Color.rgb(28, 35, 84))
             ).apply { cornerRadius = dp(24).toFloat() }
             elevation = dp(4).toFloat()
-            setOnClickListener { toggleHomeBalance() }
         }
-        val balanceTop = LinearLayout(this).apply {
+        balance.addView(text("Total Balance", 13f, Color.rgb(206, 214, 245), true))
+
+        val balanceControls = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(10), 0, 0)
         }
         val balanceMore = TextView(this).apply {
             text = "•••"
@@ -1166,7 +1168,6 @@ class MainActivity : Activity() {
             contentDescription = "ব্যালেন্স অপশন"
             isClickable = true
             isFocusable = true
-            setPadding(0, 0, dp(10), 0)
             setOnClickListener {
                 android.app.AlertDialog.Builder(this@MainActivity)
                     .setTitle("ব্যালেন্স")
@@ -1179,20 +1180,9 @@ class MainActivity : Activity() {
                     .show()
             }
         }
-        balanceTop.addView(balanceMore, LinearLayout.LayoutParams(dp(42), dp(36)))
-        balanceTop.addView(text("Total Balance", 13f, Color.rgb(206, 214, 245), true))
-        balance.addView(balanceTop)
+        balanceControls.addView(balanceMore, LinearLayout.LayoutParams(dp(42), dp(38)))
+        balanceControls.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
 
-        val balanceBottom = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, dp(12), 0, 0)
-        }
-        val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true).apply {
-            gravity = Gravity.START or Gravity.CENTER_VERTICAL
-        }
-        homeBalanceText = balanceAmountText
-        balanceBottom.addView(balanceAmountText, LinearLayout.LayoutParams(0, dp(42), 1f))
         val balanceHint = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -1203,15 +1193,16 @@ class MainActivity : Activity() {
             contentDescription = "Tap for Balance"
             setOnClickListener { toggleHomeBalance() }
         }
-        val balanceEyeIcon = text("◉̸", 19f, Color.WHITE, true).apply {
-            gravity = Gravity.CENTER
-            setPadding(0, 0, dp(7), 0)
-            contentDescription = "ব্যালেন্স লুকানো"
-        }
-        balanceHint.addView(balanceEyeIcon, LinearLayout.LayoutParams(-2, dp(24)))
         balanceHint.addView(text("Tap for Balance", 13f, Color.WHITE, true))
-        balanceBottom.addView(balanceHint)
-        balance.addView(balanceBottom)
+        balanceControls.addView(balanceHint)
+        balance.addView(balanceControls)
+
+        val balanceAmountText = text("৳  • • • • • •", 25f, Color.WHITE, true).apply {
+            gravity = Gravity.START or Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8), 0, 0)
+        }
+        homeBalanceText = balanceAmountText
+        balance.addView(balanceAmountText, LinearLayout.LayoutParams(-1, dp(46)))
         page.addView(balance, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
 
         // 4-column quick service grid, following the supplied reference layout.
