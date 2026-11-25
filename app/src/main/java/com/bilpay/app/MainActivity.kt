@@ -1053,7 +1053,7 @@ class MainActivity : Activity() {
             contentDescription = "নোটিফিকেশন"
             setOnClickListener { showInfo("নোটিফিকেশন", "নতুন নোটিফিকেশন আপাতত নেই।") }
         }
-        rightActions.addView(notificationButton, LinearLayout.LayoutParams(dp(42), dp(42)).apply {
+        rightActions.addView(notificationButton, LinearLayout.LayoutParams(dp(54), dp(54)).apply {
             marginEnd = dp(10)
         })
 
