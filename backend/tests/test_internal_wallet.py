@@ -77,3 +77,44 @@ def test_internal_transfer_rejects_zero_balance_without_creating_ledger_entries(
     assert sender_after["balance"] == "0.00"
     assert recipient_after["balance"] == "0.00"
     assert history["items"] == []
+
+
+
+def test_internal_transfer_posts_balanced_ledger_and_is_idempotent(monkeypatch):
+    monkeypatch.setenv("BILPAY_INTERNAL_WALLET_TRANSFERS_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, sender_headers = register(client)
+        recipient_phone, recipient_headers = register(client, "018")
+        sender_wallet = client.get("/api/v1/internal-wallet", headers=sender_headers).json()
+        recipient_wallet = client.get("/api/v1/internal-wallet", headers=recipient_headers).json()
+
+        # Seed a clearly test-only opening credit directly into the isolated test database.
+        with api.SessionLocal() as test_db:
+            test_db.add(api.InternalWalletLedgerEntry(
+                entry_id=uuid4().hex,
+                transaction_id="TEST-CREDIT-" + uuid4().hex,
+                wallet_id=sender_wallet["wallet_id"],
+                entry_type="CREDIT",
+                amount="100.00",
+                currency="BDT"
+            ))
+            test_db.commit()
+
+        headers = {**sender_headers, "Idempotency-Key": "internal-wallet-transfer-unique-001"}
+        payload = {"recipient_phone": recipient_phone, "amount": "25.00"}
+        sent = client.post("/api/v1/internal-wallet/transfers", headers=headers, json=payload)
+        replay = client.post("/api/v1/internal-wallet/transfers", headers=headers, json=payload)
+        sender_after = client.get("/api/v1/internal-wallet", headers=sender_headers).json()
+        recipient_after = client.get("/api/v1/internal-wallet", headers=recipient_headers).json()
+        history = client.get("/api/v1/internal-wallet/transactions", headers=sender_headers).json()
+
+    assert sender_wallet["wallet_id"] != recipient_wallet["wallet_id"]
+    assert sent.status_code == 200
+    assert sent.json()["mode"] == "INTERNAL_ONLY"
+    assert sent.json()["real_money"] is False
+    assert sent.json()["fee"] == "0.00"
+    assert replay.status_code == 200
+    assert replay.json()["transaction_id"] == sent.json()["transaction_id"]
+    assert sender_after["balance"] == "75.00"
+    assert recipient_after["balance"] == "25.00"
+    assert len(history["items"]) == 1
