@@ -247,7 +247,7 @@ class MainActivity : Activity() {
             lower == "অ্যাড মানি" -> showInfo("Add Money এখনো চালু নয়", "নিজস্ব BilPay ওয়ালেটের Add Money ফিচার প্রস্তুত করা হচ্ছে। যাচাইকৃত অর্থ জমা না হওয়া পর্যন্ত ব্যালেন্স বাড়ানো হবে না।")
             lower == "এজেন্ট ক্যাশ আউট" -> showInfo("এজেন্ট Cash-Out এখনো চালু নয়", "এজেন্ট নিবন্ধন, পরিচয় যাচাই ও নিরাপদ হিসাবব্যবস্থা প্রস্তুত না হওয়া পর্যন্ত টাকা উত্তোলন করা যাবে না।")
             lower == "ব্যাংক ট্রান্সফার" -> showInfo("Bank Transfer এখনো চালু নয়", "ব্যাংক ট্রান্সফারের নিজস্ব ফিচার তৈরি হচ্ছে। ব্যাংকের অনুমোদিত নিষ্পত্তি ব্যবস্থা ছাড়া বাস্তব টাকা পাঠানো হবে না।")
-            lower.contains("সেন্ড মানি") -> showInfo("Send Money", "BilPay-তে গ্রাহক-থেকে-গ্রাহক Send Money আপাতত এই সংস্করণে রাখা হয়নি।")
+            lower.contains("সেন্ড মানি") -> showSendMoney()
             lower.contains("ট্রান্সফার") -> showInfo("ট্রান্সফার এখনো চালু নয়", "এই ট্রান্সফার সুবিধাটি বাস্তব অর্থে এখনো চালু হয়নি।")
             lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") || lower.contains("qr") ||
                 lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
@@ -850,6 +850,19 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private fun showSendMoney() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "Send Money ব্যবহার করতে আগে আপনার BilPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        showInfo(
+            "BilPay Send Money",
+            "Send Money অপশনটি রাখা হয়েছে। নিরাপদ লেনদেনের জন্য প্রাপকের BilPay নম্বর, পরিমাণ, চার্জ ও নিশ্চিতকরণ ধাপ তৈরি করা হবে। এই সংস্করণে বাস্তব টাকা পাঠানো এখনো চালু নয়; কোনো টাকা কাটা হবে না।"
+        )
+    }
+
     private fun showWallet() {
         val token = securePrefs().getString("access_token", null)
         if (token.isNullOrBlank()) {
@@ -1030,7 +1043,7 @@ class MainActivity : Activity() {
         grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
 
         section(page, "BilPay ওয়ালেট", "নিজস্ব ওয়ালেট, এজেন্ট ক্যাশ-আউট ও ব্যাংক ট্রান্সফার")
-        grid(page, listOf("▣\nওয়ালেট", "＋\nঅ্যাড মানি", "↗\nএজেন্ট ক্যাশ আউট", "⇄\nব্যাংক ট্রান্সফার"))
+        grid(page, listOf("▣\nওয়ালেট", "＋\nঅ্যাড মানি", "↗\nএজেন্ট ক্যাশ আউট", "⇄\nব্যাংক ট্রান্সফার", "➤\nসেন্ড মানি"))
         val financeNotice = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(15), dp(16), dp(15))
