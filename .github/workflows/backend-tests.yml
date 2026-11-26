@@ -27,6 +27,8 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Run backend tests
         env:
+          PYTHONPATH: ${{ github.workspace }}/backend
+
           DATABASE_URL: sqlite:///./test_bilpay_ci.db
           BILPAY_JWT_SECRET: test-only-secret-that-is-long-enough-123456
           BILPAY_TEST_MODE: "true"
