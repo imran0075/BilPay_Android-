@@ -236,6 +236,7 @@ class MainActivity : Activity() {
             lower == "সেবা" || lower == "আরও সেবা" -> showServices()
             lower == "প্রোফাইল" -> showProfile()
             lower == "পরীক্ষামূলক ওয়ালেট" -> showSandboxWallet()
+            lower == "ওয়ালেট" || lower == "ব্যালেন্স" -> showWallet()
             lower == "সাপোর্ট" || lower == "সহায়তা" -> showSupport()
             lower == "হোম" -> showInfo("BilPay", "আপনি BilPay-এর হোম স্ক্রিনে আছেন।")
             lower == "হিসাব" || lower == "লেনদেন" -> showHistory()
@@ -845,6 +846,49 @@ class MainActivity : Activity() {
         }.start()
     }
 
+    private fun showWallet() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "নিজস্ব BilPay ওয়ালেট দেখতে আগে আপনার অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        val progress = android.app.ProgressDialog(this).apply {
+            setMessage("BilPay ওয়ালেট ব্যালেন্স যাচাই হচ্ছে…")
+            setCancelable(false)
+            show()
+        }
+        Thread {
+            var title = "BilPay ওয়ালেট"
+            var message = "ওয়ালেটের তথ্য পাওয়া যায়নি।"
+            try {
+                val (code, body) = sandboxRequest("GET", "/api/v1/wallet", token)
+                val json = try { JSONObject(body) } catch (_: Exception) { JSONObject() }
+                if (code in 200..299 && json.optString("mode").equals("LIVE", true)) {
+                    val balance = json.optString("balance", json.optString("available_balance", ""))
+                    message = if (balance.isNotBlank()) "বর্তমান ওয়ালেট ব্যালেন্স: ৳$balance\nমুদ্রা: BDT\n\nসার্ভার লেজার থেকে তথ্য নেওয়া হয়েছে।" else "সার্ভার ব্যালেন্সের তথ্য দেয়নি।"
+                } else {
+                    title = "ওয়ালেট এখনো প্রস্তুত নয়"
+                    val detail = json.opt("detail")
+                    message = if (detail is String && detail.isNotBlank()) detail
+                        else "নিরাপদ লাইভ ওয়ালেট লেজার এখনো চালু হয়নি। কোনো ডেমো বা পরীক্ষামূলক ব্যালেন্স এখানে দেখানো হবে না।"
+                }
+            } catch (e: Exception) {
+                title = "ওয়ালেট যাচাই হয়নি"
+                message = "BilPay সার্ভারের সঙ্গে যোগাযোগ করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"
+            }
+            runOnUiThread {
+                progress.dismiss()
+                android.app.AlertDialog.Builder(this)
+                    .setTitle(title)
+                    .setMessage(message)
+                    .setPositiveButton("আবার দেখুন") { _, _ -> showWallet() }
+                    .setNegativeButton("বন্ধ", null)
+                    .show()
+            }
+        }.start()
+    }
+
     private fun showHistory() {
         // Staging users should see the isolated, non-redeemable Sandbox ledger.
         // Production continues to show the live-ledger readiness notice until approved rails exist.
@@ -947,7 +991,8 @@ class MainActivity : Activity() {
         accountCard.addView(text("আপনার অ্যাকাউন্ট নিরাপদে ব্যবহার করুন", 17f, dark, true).apply {
             setPadding(0, dp(8), 0, dp(4))
         })
-        accountCard.addView(text("প্রোফাইল থেকে নিবন্ধন বা লগইন করুন। বাস্তব ওয়ালেট চালুর আগে কোনো কাল্পনিক ব্যালেন্স দেখানো হবে না।", 11f, muted))
+        accountCard.addView(text("প্রোফাইল থেকে নিবন্ধন বা লগইন করুন। ওয়ালেট ব্যালেন্স দেখতে এখানে চাপ দিন।", 11f, muted))
+        accountCard.setOnClickListener { showWallet() }
         page.addView(accountCard, LinearLayout.LayoutParams(-1, -2))
         val quickTitle = text("দ্রুত কাজ", 12f, ink, true).apply { setPadding(0, dp(22), 0, dp(10)) }
         page.addView(quickTitle)
@@ -980,16 +1025,16 @@ class MainActivity : Activity() {
         section(page, "বিল পেমেন্ট", "প্রয়োজনীয় সব বিল সহজে পরিশোধ করুন")
         grid(page, listOf("⚡\nবিদ্যুৎ","💧\nপানি","🔥\nগ্যাস","🌐\nইন্টারনেট","📱\nমোবাইল রিচার্জ","📺\nটিভি / DTH","☎\nটেলিফোন","🎓\nশিক্ষা ফি","🏥\nহাসপাতাল","🏛\nসরকারি ফি","🧾\nঅন্যান্য বিল","＋\nআরও সেবা"))
 
-        section(page, "মোবাইল ফিন্যান্স", "পরীক্ষামূলক Send Money এবং আসন্ন আর্থিক সেবা")
-        grid(page, listOf("💸\nসেন্ড মানি", "➕\nক্যাশ ইন", "↗\nক্যাশ আউট", "⇄\nট্রান্সফার"))
+        section(page, "BilPay ওয়ালেট", "নিজস্ব ওয়ালেট, এজেন্ট ক্যাশ-আউট ও ব্যাংক ট্রান্সফার")
+        grid(page, listOf("▣\nওয়ালেট", "＋\nঅ্যাড মানি", "↗\nএজেন্ট ক্যাশ আউট", "⇄\nব্যাংক ট্রান্সফার"))
         val financeNotice = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(16), dp(15), dp(16), dp(15))
             background = shape(Color.WHITE, 17)
             elevation = dp(2).toFloat()
         }
-        financeNotice.addView(text("মোবাইল ব্যাংকিং সেবা প্রস্তুত হচ্ছে", 13f, ink, true))
-        financeNotice.addView(text("bKash, Nagad, Rocket ও Upay-এর অনুমোদিত API/চুক্তি এখনো যুক্ত হয়নি। অনুমোদন ও অ্যাডমিনের দৃশ্যমানতা চালু হলে সেবাগুলো এখানে দেখাবে।", 10f, soft).apply {
+        financeNotice.addView(text("নিজস্ব ওয়ালেট সিস্টেম", 13f, ink, true))
+        financeNotice.addView(text("ওয়ালেটের ব্যালেন্স সার্ভারের নিরাপদ লেজার থেকে দেখানো হবে। Add Money, এজেন্ট Cash-Out ও Bank Transfer এখনো বাস্তব অর্থে চালু নয়; কোনো পরীক্ষামূলক ব্যালেন্সকে আসল টাকা হিসেবে দেখানো হবে না।", 10f, soft).apply {
             setPadding(0, dp(6), 0, 0)
         })
         page.addView(financeNotice)
