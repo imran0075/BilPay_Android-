@@ -28,6 +28,27 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
+      - name: Smoke-check deployed internal wallet flags
+        working-directory: .
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          url = "https://bilpay-api-5b57.onrender.com/api/v1/internal-wallet/status"
+          request = urllib.request.Request(url, headers={"User-Agent": "BPay-CI-smoke-check"})
+          with urllib.request.urlopen(request, timeout=30) as response:
+              assert response.status == 200, f"Unexpected HTTP status: {response.status}"
+              data = json.loads(response.read().decode("utf-8"))
+
+          assert data.get("wallet_accounts_enabled") is True, data
+          assert data.get("internal_transfers_enabled") is True, data
+          assert data.get("live_transactions_enabled") is False, data
+          assert data.get("external_funding_enabled") is False, data
+          assert data.get("withdrawals_enabled") is False, data
+          assert data.get("mode") == "INTERNAL_ONLY", data
+          print("Internal wallet API is reachable; internal transfers are enabled; external money movement remains disabled.")
+          PY
       - name: Run security tests
         env:
           PYTHONPATH: .
