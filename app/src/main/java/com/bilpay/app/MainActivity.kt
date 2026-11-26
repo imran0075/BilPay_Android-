@@ -50,7 +50,7 @@ class MainActivity : Activity() {
                 lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
                 lower.contains("শিক্ষা") || lower.contains("হাসপাতাল") || lower.contains("সরকারি") ||
                 lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
-            lower.contains("সেন্ড মানি") -> openSandboxTransferForm(false)
+            lower.contains("সেন্ড মানি") -> openInternalWalletTransferForm()
             lower.contains("ফান্ড ট্রান্সফার") -> openSandboxTransferForm(true)
             lower == "qr" || lower.contains("qr") -> startQrScanner()
             lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") ||
@@ -596,6 +596,93 @@ class MainActivity : Activity() {
             }
         }.start()
     }
+    private fun openInternalWalletTransferForm() {
+        val token = securePrefs().getString("access_token", null)
+        if (token.isNullOrBlank()) {
+            showInfo("লগইন প্রয়োজন", "নিজস্ব ওয়ালেট থেকে Send Money করতে আগে BPay অ্যাকাউন্টে লগইন করুন।")
+            showAuthForm(false)
+            return
+        }
+        showInternalWalletTransfer(token)
+    }
+
+    private fun showInternalWalletTransfer(token: String) {
+        val form = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), 0)
+        }
+        val phone = EditText(this).apply {
+            hint = "প্রাপকের BPay নম্বর"
+            inputType = android.text.InputType.TYPE_CLASS_PHONE
+        }
+        val amount = EditText(this).apply {
+            hint = "পরিমাণ (৳)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        form.addView(phone)
+        form.addView(amount)
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("BPay Internal Send Money")
+            .setMessage("শুধু অভ্যন্তরীণ ওয়ালেট লেজারে স্থানান্তর হবে। ফি ৳০। এটি বাস্তব টাকা বা Cash-Out নয়।")
+            .setView(form)
+            .setNegativeButton("বাতিল", null)
+            .setPositiveButton("টাকা পাঠান", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val recipient = normalizeBdPhone(phone.text.toString())
+                val value = amount.text.toString().trim()
+                val decimal = value.toBigDecimalOrNull()
+                if (!recipient.matches(Regex("^01[3-9][0-9]{8}$")) ||
+                    decimal == null || decimal <= java.math.BigDecimal.ZERO ||
+                    decimal.scale() > 2 || decimal > java.math.BigDecimal("10000")) {
+                    showInfo("তথ্য যাচাই", "সঠিক ১১ সংখ্যার BPay নম্বর এবং ৳০.০১ থেকে ৳১০,০০০ পর্যন্ত পরিমাণ লিখুন।")
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                val progress = android.app.ProgressDialog(this).apply {
+                    setMessage("ওয়ালেট লেজার যাচাই ও ট্রান্সফার হচ্ছে…")
+                    setCancelable(false)
+                    show()
+                }
+                Thread {
+                    var message = "অনুরোধ সম্পন্ন হয়নি।"
+                    var success = false
+                    try {
+                        val payload = JSONObject()
+                            .put("recipient_phone", recipient)
+                            .put("amount", decimal.setScale(2, java.math.RoundingMode.UNNECESSARY).toPlainString())
+                        val key = "INT_SEND_MONEY-" + java.util.UUID.randomUUID().toString()
+                        val (code, body) = sandboxRequest(
+                            "POST", "/api/v1/internal-wallet/transfers", token, payload, key
+                        )
+                        val json = JSONObject(body)
+                        if (code in 200..299) {
+                            success = true
+                            message = "অভ্যন্তরীণ Send Money সফল।\\nপরিমাণ: ৳" +
+                                json.optString("amount") + "\\nফি: ৳0.00\\nবাস্তব টাকা স্থানান্তর হয়নি।"
+                        } else {
+                            val detail = json.opt("detail")
+                            message = if (detail is String) detail else "অনুরোধ সম্পন্ন হয়নি (HTTP $code)।"
+                        }
+                    } catch (e: Exception) {
+                        message = "সমস্যা হয়েছে: " + (e.localizedMessage ?: "অজানা ত্রুটি")
+                    }
+                    runOnUiThread {
+                        progress.dismiss()
+                        if (securePrefs().getString("access_token", null) != token) return@runOnUiThread
+                        showInfo(if (success) "Send Money সফল" else "Send Money হয়নি", message)
+                        if (success) {
+                            resetHomeBalance()
+                            showInternalWallet()
+                        }
+                    }
+                }.start()
+            }
+        }
+        dialog.show()
+    }
+
     private fun showSandboxWallet() {
         val token = securePrefs().getString("access_token", null)
         if (token.isNullOrBlank()) {
