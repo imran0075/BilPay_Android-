@@ -244,10 +244,14 @@ class MainActivity : Activity() {
                 lower.contains("ইন্টারনেট") || lower.contains("টিভি") || lower.contains("টেলিফোন") ||
                 lower.contains("শিক্ষা") || lower.contains("হাসপাতাল") || lower.contains("সরকারি") ||
                 lower.contains("অন্যান্য") || lower.contains("রিচার্জ") -> showBillForm(label)
-            lower.contains("সেন্ড মানি") || lower.contains("ট্রান্সফার") -> showSandboxWallet()
+            lower == "অ্যাড মানি" -> showInfo("Add Money এখনো চালু নয়", "নিজস্ব BilPay ওয়ালেটের Add Money ফিচার প্রস্তুত করা হচ্ছে। যাচাইকৃত অর্থ জমা না হওয়া পর্যন্ত ব্যালেন্স বাড়ানো হবে না।")
+            lower == "এজেন্ট ক্যাশ আউট" -> showInfo("এজেন্ট Cash-Out এখনো চালু নয়", "এজেন্ট নিবন্ধন, পরিচয় যাচাই ও নিরাপদ হিসাবব্যবস্থা প্রস্তুত না হওয়া পর্যন্ত টাকা উত্তোলন করা যাবে না।")
+            lower == "ব্যাংক ট্রান্সফার" -> showInfo("Bank Transfer এখনো চালু নয়", "ব্যাংক ট্রান্সফারের নিজস্ব ফিচার তৈরি হচ্ছে। ব্যাংকের অনুমোদিত নিষ্পত্তি ব্যবস্থা ছাড়া বাস্তব টাকা পাঠানো হবে না।")
+            lower.contains("সেন্ড মানি") -> showInfo("Send Money", "BilPay-তে গ্রাহক-থেকে-গ্রাহক Send Money আপাতত এই সংস্করণে রাখা হয়নি।")
+            lower.contains("ট্রান্সফার") -> showInfo("ট্রান্সফার এখনো চালু নয়", "এই ট্রান্সফার সুবিধাটি বাস্তব অর্থে এখনো চালু হয়নি।")
             lower.contains("অ্যাড মানি") || lower.contains("ক্যাশ") || lower.contains("qr") ||
                 lower.contains("bkash") || lower.contains("nagad") || lower.contains("rocket") || lower.contains("upay") ->
-                showInfo("সেবা চালুর অপেক্ষায়", "Cash In, Cash Out ও বাহ্যিক ট্রান্সফার এখনো চালু নয়। অনুমোদিত আর্থিক অংশীদার API ও চুক্তি যুক্ত হলে বাস্তব সেবা চালু হবে।")
+                showInfo("সেবা চালুর অপেক্ষায়", "এই আর্থিক সেবাটি এখনো বাস্তব অর্থে চালু নয়। কোনো টাকা কাটা বা যোগ করা হবে না।")
             else -> showInfo("সেবা প্রস্তুত হচ্ছে", "এই সুবিধাটি বাস্তবভাবে চালুর জন্য প্রয়োজনীয় সার্ভার বা সেবাদাতা সংযোগ এখনো সম্পন্ন হয়নি।")
         }
     }
