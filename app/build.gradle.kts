@@ -35,14 +35,14 @@ android {
         versionCode = 29
         versionName = "1.4.6"
         val configuredApiUrl = (project.findProperty("BILPAY_API_BASE_URL") as String?)?.trim()
-        val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-sandbox-api-v2.onrender.com"
+        val apiBaseUrl = configuredApiUrl?.takeIf { it.isNotEmpty() } ?: "https://bilpay-api-5b57.onrender.com"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
         getByName("debug") {
             applicationIdSuffix = ".staging"
-            buildConfigField("String", "API_BASE_URL", "\"https://bilpay-sandbox-api-v2.onrender.com\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://bilpay-api-5b57.onrender.com\"")
         }
         getByName("release") {
             val permanentKeyConfigured = !System.getenv("BILPAY_KEYSTORE_PATH").isNullOrBlank()
