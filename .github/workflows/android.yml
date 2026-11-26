@@ -1,7 +1,7 @@
 name: Build BilPay Signed Android APK
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feat/sandbox-internal-wallet" ]
   workflow_dispatch:
 
 permissions:
