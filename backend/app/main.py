@@ -315,7 +315,7 @@ class AdminWalletDepositRequest(BaseModel):
     notes: str = Field(default="", max_length=300)
 
 class AgentCashInRequestPayload(BaseModel):
-    cash_received: Literal[True] = True
+    cash_received: Literal[True]
     customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
     reference: str = Field(default="", max_length=100)
@@ -620,7 +620,7 @@ def agent_create_cash_in(payload: AgentCashInRequestPayload,
                          agent: User = Depends(current_user), db: Session = Depends(get_db)):
     if not agent_cashin_enabled():
         raise HTTPException(status_code=503, detail="এজেন্ট Cash In এখনো সার্ভারে চালু করা হয়নি।")
-    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == agent.id))
+    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == agent.id).with_for_update())
     if profile is None or profile.status != "ACTIVE":
         raise HTTPException(status_code=403, detail="আপনি Admin অনুমোদিত সক্রিয় এজেন্ট নন।")
     customer = db.scalar(select(User).where(User.phone == payload.customer_phone))
@@ -657,6 +657,21 @@ def agent_create_cash_in(payload: AgentCashInRequestPayload,
     return {"request_id": request_id, "status": "PENDING", "amount": str(payload.amount),
             "payment_method": "cash", "mode": "INTERNAL_ONLY", "real_money": False,
             "message": "Cash In অনুরোধ Admin অনুমোদনের অপেক্ষায় আছে; এখনো গ্রাহকের ব্যালেন্সে যোগ হয়নি।"}
+
+
+@app.get("/api/v1/agent/cash-ins")
+def agent_cash_in_history(agent: User = Depends(current_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.execute(select(AgentCashInRequest, User.phone)
+                      .join(User, AgentCashInRequest.customer_user_id == User.id)
+                      .where(AgentCashInRequest.agent_user_id == agent.id)
+                      .order_by(AgentCashInRequest.created_at.desc()).limit(limit)).all()
+    return {"items": [{"request_id": item.request_id, "customer_phone": phone,
+                       "amount": str(item.amount), "status": item.status,
+                       "reference": item.reference, "created_at": item.created_at.isoformat(),
+                       "deposit_transaction_id": item.deposit_transaction_id,
+                       "mode": "INTERNAL_ONLY", "real_money": False}
+                      for item, phone in rows]}
 
 
 @app.get("/api/v1/admin/agent-cash-ins")
