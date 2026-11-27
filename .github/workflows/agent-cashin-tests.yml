@@ -29,5 +29,6 @@ jobs:
       - name: Run backend tests
         env:
           DATABASE_URL: sqlite:///./test_bilpay_internal_wallet.db
+          PYTHONPATH: .
           BILPAY_JWT_SECRET: test-only-secret-that-is-long-enough-123456
         run: pytest -q tests/test_internal_wallet.py
