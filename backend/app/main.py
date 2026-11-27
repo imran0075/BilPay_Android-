@@ -315,7 +315,7 @@ class AdminWalletDepositRequest(BaseModel):
     notes: str = Field(default="", max_length=300)
 
 class AgentCashInRequestPayload(BaseModel):
-    cash_received: Literal[true] = true
+    cash_received: Literal[True] = True
     customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
     reference: str = Field(default="", max_length=100)
