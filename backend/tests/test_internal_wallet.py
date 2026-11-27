@@ -235,3 +235,60 @@ def test_admin_approved_agent_cash_in_requires_admin_approval_and_posts_once(mon
     assert after["balance"] == "350.00"
     assert after["mode"] == "INTERNAL_ONLY"
     assert len([x for x in history["items"] if x["status"] == "APPROVED"]) == 1
+
+
+
+def test_agent_cashin_reject_does_not_credit_customer(monkeypatch):
+    monkeypatch.setenv("BILPAY_AGENT_CASHIN_ENABLED", "true")
+    monkeypatch.setenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, admin_headers = register(client, "017")
+        agent_phone, agent_headers = register(client, "018")
+        customer_phone, customer_headers = register(client, "019")
+        admin_phone = client.get("/api/v1/auth/me", headers=admin_headers).json()["phone"]
+        monkeypatch.setenv("BILPAY_ADMIN_PHONES", admin_phone)
+        approved = client.post("/api/v1/admin/agents", headers=admin_headers, json={
+            "user_phone": agent_phone, "max_per_tx": "1000.00", "daily_limit": "2000.00"
+        })
+        assert approved.status_code == 200
+        request = client.post("/api/v1/agent/cash-ins",
+            headers={**agent_headers, "Idempotency-Key": "agent-cashin-reject-001"},
+            json={"cash_received": True, "customer_phone": customer_phone, "amount": "100.00"})
+        assert request.status_code == 200
+        queue = client.get("/api/v1/admin/agent-cash-ins?status=PENDING", headers=admin_headers).json()
+        request_id = next(x["id"] for x in queue["items"] if x["request_id"] == request.json()["request_id"])
+        rejected = client.post(f"/api/v1/admin/agent-cash-ins/{request_id}/reject", headers=admin_headers)
+        balance = client.get("/api/v1/internal-wallet", headers=customer_headers).json()["balance"]
+    assert rejected.status_code == 200
+    assert rejected.json()["status"] == "REJECTED"
+    assert balance == "0.00"
+
+
+def test_agent_cashin_rejects_self_cash_in_and_enforces_limits(monkeypatch):
+    monkeypatch.setenv("BILPAY_AGENT_CASHIN_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, admin_headers = register(client, "017")
+        agent_phone, agent_headers = register(client, "018")
+        admin_phone = client.get("/api/v1/auth/me", headers=admin_headers).json()["phone"]
+        monkeypatch.setenv("BILPAY_ADMIN_PHONES", admin_phone)
+        approved = client.post("/api/v1/admin/agents", headers=admin_headers, json={
+            "user_phone": agent_phone, "max_per_tx": "100.00", "daily_limit": "150.00"
+        })
+        assert approved.status_code == 200
+        self_cash = client.post("/api/v1/agent/cash-ins",
+            headers={**agent_headers, "Idempotency-Key": "agent-self-cashin-001"},
+            json={"cash_received": True, "customer_phone": agent_phone, "amount": "50.00"})
+        target_phone, _ = register(client, "019")
+        too_large = client.post("/api/v1/agent/cash-ins",
+            headers={**agent_headers, "Idempotency-Key": "agent-over-max-001"},
+            json={"cash_received": True, "customer_phone": target_phone, "amount": "101.00"})
+        first = client.post("/api/v1/agent/cash-ins",
+            headers={**agent_headers, "Idempotency-Key": "agent-daily-first-001"},
+            json={"cash_received": True, "customer_phone": target_phone, "amount": "100.00"})
+        second = client.post("/api/v1/agent/cash-ins",
+            headers={**agent_headers, "Idempotency-Key": "agent-daily-second-001"},
+            json={"cash_received": True, "customer_phone": target_phone, "amount": "60.00"})
+    assert self_cash.status_code == 400
+    assert too_large.status_code == 400
+    assert first.status_code == 200
+    assert second.status_code == 400
