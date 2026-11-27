@@ -636,7 +636,7 @@ def agent_create_cash_in(payload: AgentCashInRequestPayload,
             raise HTTPException(status_code=409, detail="এই Idempotency-Key অন্য অনুরোধে ব্যবহৃত হয়েছে।")
         return {"request_id": existing.request_id, "status": existing.status,
                 "amount": str(existing.amount), "mode": "INTERNAL_ONLY", "real_money": False}
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    bd_now = datetime.now(timezone.utc) + timedelta(hours=6)\n    today = bd_now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=6)
     used_today = db.scalar(select(func.coalesce(func.sum(AgentCashInRequest.amount), 0)).where(
         AgentCashInRequest.agent_user_id == agent.id,
         AgentCashInRequest.created_at >= today,
