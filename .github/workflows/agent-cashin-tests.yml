@@ -2,7 +2,7 @@ name: BPay Agent Cash In Backend Tests
 
 on:
   push:
-    branches: ["fix/internal-wallet-send-money-1.4.6", "feature/web-admin-agent-cashin"]
+    branches: ["fix/internal-wallet-send-money-1.4.6", "feature/web-admin-agent-cashin", "feature/web-admin-agent-cashin-review"]
   pull_request:
     branches: ["fix/internal-wallet-send-money-1.4.6", "main"]
 
