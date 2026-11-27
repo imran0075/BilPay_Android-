@@ -651,8 +651,6 @@ def agent_create_cash_in(payload: AgentCashInRequestPayload,
                               reference=payload.reference.strip(), notes=payload.notes.strip(),
                               status="PENDING")
     db.add(item)
-    db.add(AdminAuditLog(admin_user_id=agent.id, action="agent_cash_in_requested",
-                         target=customer.phone, details=f"{request_id}; amount={payload.amount}"))
     db.commit()
     return {"request_id": request_id, "status": "PENDING", "amount": str(payload.amount),
             "payment_method": "cash", "mode": "INTERNAL_ONLY", "real_money": False,
