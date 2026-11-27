@@ -166,10 +166,11 @@ def test_admin_manual_deposit_credits_internal_only_and_is_idempotent(monkeypatc
 
 def test_non_admin_cannot_post_manual_wallet_deposit(monkeypatch):
     monkeypatch.setenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "true")
+    monkeypatch.setenv("BILPAY_ADMIN_PHONES", "01912345678")
     with TestClient(api.app) as client:
         _, user_headers = register(client, "017")
         target_phone, _ = register(client, "018")
         response = client.post("/api/v1/admin/internal-wallet/deposits",
             headers={**user_headers, "Idempotency-Key": "manual-deposit-forbidden-001"},
             json={"user_phone": target_phone, "amount": "10.00", "payment_method": "cash", "reference": "CASH-RCPT-002"})
-    assert response.status_code == 503  # no admin allowlist configured; fail closed
+    assert response.status_code == 403
