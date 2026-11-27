@@ -118,3 +118,58 @@ def test_internal_transfer_posts_balanced_ledger_and_is_idempotent(monkeypatch):
     assert sender_after["balance"] == "75.00"
     assert recipient_after["balance"] == "25.00"
     assert len(history["items"]) == 1
+
+
+
+def test_admin_manual_deposit_is_disabled_by_default(monkeypatch):
+    monkeypatch.setenv("BILPAY_ADMIN_PHONES", "01700000000")
+    monkeypatch.delenv("BILPAY_ADMIN_DEPOSITS_ENABLED", raising=False)
+    with TestClient(api.app) as client:
+        _, admin_headers = register(client, "017")
+        target_phone, _ = register(client, "018")
+        admin_phone = client.get("/api/v1/auth/me", headers=admin_headers).json()["phone"]
+        monkeypatch.setenv("BILPAY_ADMIN_PHONES", admin_phone)
+        response = client.post("/api/v1/admin/internal-wallet/deposits",
+            headers={**admin_headers, "Idempotency-Key": "manual-deposit-disabled-001"},
+            json={"user_phone": target_phone, "amount": "50.00", "payment_method": "cash", "reference": "CASH-RCPT-001"})
+    assert response.status_code == 503
+
+
+def test_admin_manual_deposit_credits_internal_only_and_is_idempotent(monkeypatch):
+    monkeypatch.setenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, admin_headers = register(client, "017")
+        target_phone, target_headers = register(client, "018")
+        admin_phone = client.get("/api/v1/auth/me", headers=admin_headers).json()["phone"]
+        monkeypatch.setenv("BILPAY_ADMIN_PHONES", admin_phone)
+        payload = {"user_phone": target_phone, "amount": "125.50", "payment_method": "bank",
+                   "reference": "BANK-TXN-REF-9001", "notes": "ব্যাংক জমা যাচাই করা হয়েছে"}
+        headers = {**admin_headers, "Idempotency-Key": "manual-deposit-bank-unique-001"}
+        posted = client.post("/api/v1/admin/internal-wallet/deposits", headers=headers, json=payload)
+        replay = client.post("/api/v1/admin/internal-wallet/deposits", headers=headers, json=payload)
+        wallet = client.get("/api/v1/internal-wallet", headers=target_headers).json()
+        deposits = client.get("/api/v1/admin/internal-wallet/deposits", headers=admin_headers).json()
+        audit = client.get("/api/v1/admin/audit", headers=admin_headers).json()
+
+    assert posted.status_code == 200
+    assert posted.json()["status"] == "POSTED"
+    assert posted.json()["real_money"] is False
+    assert replay.status_code == 200
+    assert replay.json()["transaction_id"] == posted.json()["transaction_id"]
+    assert wallet["balance"] == "125.50"
+    assert wallet["mode"] == "INTERNAL_ONLY"
+    assert wallet["real_money"] is False
+    assert len(deposits["items"]) == 1
+    assert deposits["items"][0]["reference"] == "BANK-TXN-REF-9001"
+    assert any(x["action"] == "manual_wallet_deposit" for x in audit["items"])
+
+
+def test_non_admin_cannot_post_manual_wallet_deposit(monkeypatch):
+    monkeypatch.setenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "true")
+    with TestClient(api.app) as client:
+        _, user_headers = register(client, "017")
+        target_phone, _ = register(client, "018")
+        response = client.post("/api/v1/admin/internal-wallet/deposits",
+            headers={**user_headers, "Idempotency-Key": "manual-deposit-forbidden-001"},
+            json={"user_phone": target_phone, "amount": "10.00", "payment_method": "cash", "reference": "CASH-RCPT-002"})
+    assert response.status_code == 503  # no admin allowlist configured; fail closed
