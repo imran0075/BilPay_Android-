@@ -1,8 +1,9 @@
-name: Build BilPay Sandbox APK with permanent signing key
+name: Build BPay 1.4.6 APK with permanent signing key
 on:
   push:
     branches:
       - feat/android-sandbox-admin-grant
+      - fix/internal-wallet-send-money-1.4.6
 
 permissions:
   contents: read
@@ -63,7 +64,7 @@ jobs:
           BILPAY_STORE_PASSWORD: ${{ secrets.BILPAY_STORE_PASSWORD }}
           BILPAY_KEY_ALIAS: ${{ secrets.BILPAY_KEY_ALIAS }}
           BILPAY_KEY_PASSWORD: ${{ secrets.BILPAY_KEY_PASSWORD }}
-        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-sandbox-api-v2.onrender.com" assembleRelease
+        run: gradle --no-daemon -PBILPAY_API_BASE_URL="https://bilpay-api-5b57.onrender.com" assembleRelease
 
       - name: Verify APK signature and package
         shell: bash
@@ -79,7 +80,7 @@ jobs:
       - name: Upload signed Sandbox APK
         uses: actions/upload-artifact@v4
         with:
-          name: BilPay-Sandbox-Permanent-Signed-APK
+          name: BPay-1.4.6-Permanent-Signed-APK
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 14

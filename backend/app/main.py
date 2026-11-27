@@ -129,6 +129,23 @@ class InternalWalletLedgerEntry(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
 
+
+
+class AdminWalletDeposit(Base):
+    __tablename__ = "admin_wallet_deposits"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transaction_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    wallet_id: Mapped[str] = mapped_column(ForeignKey("internal_wallet_accounts.wallet_id"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    admin_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    payment_method: Mapped[str] = mapped_column(String(10))
+    reference: Mapped[str] = mapped_column(String(100))
+    notes: Mapped[str] = mapped_column(String(300), default="")
+    status: Mapped[str] = mapped_column(String(16), default="POSTED")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -261,9 +278,20 @@ class InternalWalletTransferRequest(BaseModel):
     amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
 
 
+class AdminWalletDepositRequest(BaseModel):
+    user_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
+    payment_method: Literal["cash", "bank"]
+    reference: str = Field(min_length=3, max_length=100)
+    notes: str = Field(default="", max_length=300)
+
 class SandboxTransferRequest(BaseModel):
     recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
+
+def admin_wallet_deposits_enabled():
+    return os.getenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
 
 def internal_wallet_transfers_enabled():
     return os.getenv("BILPAY_INTERNAL_WALLET_TRANSFERS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
@@ -278,7 +306,11 @@ def internal_wallet_balance(db: Session, wallet_id: str) -> Decimal:
         InternalWalletLedgerEntry.wallet_id == wallet_id,
         InternalWalletLedgerEntry.entry_type == "DEBIT"
     ))
-    balance = Decimal(str(credits or 0)) - Decimal(str(debits or 0))
+    deposits = db.scalar(select(func.coalesce(func.sum(AdminWalletDeposit.amount), 0)).where(
+        AdminWalletDeposit.wallet_id == wallet_id,
+        AdminWalletDeposit.status == "POSTED"
+    ))
+    balance = Decimal(str(credits or 0)) + Decimal(str(deposits or 0)) - Decimal(str(debits or 0))
     return balance.quantize(Decimal("0.01"))
 
 
@@ -377,6 +409,7 @@ def internal_wallet_status():
         "internal_transfers_enabled": internal_wallet_transfers_enabled(),
         "live_transactions_enabled": False,
         "external_funding_enabled": False,
+        "admin_manual_deposits_enabled": admin_wallet_deposits_enabled(),
         "withdrawals_enabled": False,
         "mode": "INTERNAL_ONLY",
         "message": "ওয়ালেট অ্যাকাউন্ট তৈরি করা যাবে; বাস্তব টাকা জমা/উত্তোলন ও বাহ্যিক পেমেন্ট চালু নেই।"
@@ -400,6 +433,76 @@ def get_internal_wallet(user: User = Depends(current_user), db: Session = Depend
         "withdrawals_enabled": False,
         "transfers_enabled": internal_wallet_transfers_enabled()
     }
+
+
+@app.post("/api/v1/admin/internal-wallet/deposits")
+def admin_internal_wallet_deposit(
+    payload: AdminWalletDepositRequest,
+    idempotency_key: str = Header(..., alias="Idempotency-Key", min_length=8, max_length=100),
+    admin: User = Depends(admin_user),
+    db: Session = Depends(get_db)
+):
+    if not admin_wallet_deposits_enabled():
+        raise HTTPException(status_code=503, detail="অ্যাডমিন ম্যানুয়াল ডিপোজিট এখনো সার্ভারে চালু করা হয়নি।")
+    target = db.scalar(select(User).where(User.phone == payload.user_phone))
+    if target is None:
+        raise HTTPException(status_code=404, detail="গ্রাহকের অ্যাকাউন্ট পাওয়া যায়নি।")
+    existing = db.scalar(select(AdminWalletDeposit).where(AdminWalletDeposit.idempotency_key == idempotency_key))
+    if existing is not None:
+        if (existing.user_id != target.id or Decimal(existing.amount) != payload.amount or
+            existing.payment_method != payload.payment_method or existing.reference != payload.reference.strip()):
+            raise HTTPException(status_code=409, detail="এই Idempotency-Key আগে অন্য ডিপোজিটে ব্যবহৃত হয়েছে।")
+        return {"transaction_id": existing.transaction_id, "status": existing.status,
+                "amount": str(existing.amount), "payment_method": existing.payment_method,
+                "mode": "INTERNAL_ONLY", "real_money": False,
+                "message": "আগের ডিপোজিট রেকর্ড ফেরত দেওয়া হয়েছে; নতুন করে ব্যালেন্স যোগ হয়নি।"}
+    wallet = ensure_internal_wallet(db, target)
+    db.commit()
+    try:
+        with db.begin():
+            locked = db.scalar(select(InternalWalletAccount).where(
+                InternalWalletAccount.wallet_id == wallet.wallet_id
+            ).with_for_update())
+            if locked is None or locked.status != "ACTIVE":
+                raise HTTPException(status_code=403, detail="গ্রাহকের ওয়ালেট সক্রিয় নয়।")
+            transaction_id = "BPD-" + uuid.uuid4().hex[:24].upper()
+            deposit = AdminWalletDeposit(
+                transaction_id=transaction_id, idempotency_key=idempotency_key,
+                wallet_id=locked.wallet_id, user_id=target.id, admin_user_id=admin.id,
+                amount=payload.amount, payment_method=payload.payment_method,
+                reference=payload.reference.strip(), notes=payload.notes.strip(), status="POSTED"
+            )
+            db.add(deposit)
+            db.add(AdminAuditLog(
+                admin_user_id=admin.id, action="manual_wallet_deposit", target=target.phone,
+                details=f"{payload.amount} BDT; method={payload.payment_method}; ref={payload.reference.strip()}"
+            ))
+        return {"transaction_id": transaction_id, "status": "POSTED",
+                "amount": str(payload.amount), "payment_method": payload.payment_method,
+                "reference": payload.reference.strip(), "mode": "INTERNAL_ONLY",
+                "real_money": False,
+                "message": "অ্যাডমিন ডিপোজিট রেকর্ড সংরক্ষিত হয়েছে। এটি কেবল অভ্যন্তরীণ লেজার; বাস্তব/উত্তোলনযোগ্য টাকা নয়।"}
+    except IntegrityError:
+        db.rollback()
+        existing = db.scalar(select(AdminWalletDeposit).where(AdminWalletDeposit.idempotency_key == idempotency_key))
+        if existing and existing.user_id == target.id and Decimal(existing.amount) == payload.amount and existing.payment_method == payload.payment_method and existing.reference == payload.reference.strip():
+            return {"transaction_id": existing.transaction_id, "status": existing.status,
+                    "amount": str(existing.amount), "payment_method": existing.payment_method,
+                    "mode": "INTERNAL_ONLY", "real_money": False}
+        raise HTTPException(status_code=409, detail="ডিপোজিট অনুরোধটি সংঘর্ষ হয়েছে; ব্যালেন্স পুনরায় পরীক্ষা করুন।")
+
+
+@app.get("/api/v1/admin/internal-wallet/deposits")
+def admin_internal_wallet_deposits(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.execute(select(AdminWalletDeposit, User.phone).join(User, AdminWalletDeposit.user_id == User.id)
+                      .order_by(AdminWalletDeposit.created_at.desc()).limit(limit)).all()
+    record_admin_action(db, admin, "view_manual_wallet_deposits", "wallet_deposits", f"Viewed up to {limit} deposits")
+    return {"items": [{"transaction_id": d.transaction_id, "user_phone": phone,
+                       "amount": str(d.amount), "payment_method": d.payment_method,
+                       "reference": d.reference, "notes": d.notes, "status": d.status,
+                       "created_at": d.created_at.isoformat(), "mode": "INTERNAL_ONLY",
+                       "real_money": False} for d, phone in rows]}
 
 
 @app.post("/api/v1/internal-wallet/transfers")
