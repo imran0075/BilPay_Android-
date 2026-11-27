@@ -315,6 +315,7 @@ class AdminWalletDepositRequest(BaseModel):
     notes: str = Field(default="", max_length=300)
 
 class AgentCashInRequestPayload(BaseModel):
+    cash_received: Literal[true] = true
     customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
     reference: str = Field(default="", max_length=100)
@@ -682,6 +683,7 @@ def admin_approve_agent_cash_in(request_id: int, admin: User = Depends(admin_use
                                 db: Session = Depends(get_db)):
     if not agent_cashin_enabled() or not admin_wallet_deposits_enabled():
         raise HTTPException(status_code=503, detail="Agent Cash In ও Admin deposit feature সার্ভারে চালু করা হয়নি।")
+    db.commit()
     try:
         with db.begin():
             item = db.scalar(select(AgentCashInRequest).where(
