@@ -750,16 +750,21 @@ def admin_approve_agent_cash_in(request_id: int, admin: User = Depends(admin_use
 @app.post("/api/v1/admin/agent-cash-ins/{request_id}/reject")
 def admin_reject_agent_cash_in(request_id: int, admin: User = Depends(admin_user),
                                db: Session = Depends(get_db)):
-    item = db.scalar(select(AgentCashInRequest).where(AgentCashInRequest.id == request_id))
-    if item is None:
-        raise HTTPException(status_code=404, detail="Cash In অনুরোধ পাওয়া যায়নি।")
-    if item.status != "PENDING":
-        raise HTTPException(status_code=409, detail="শুধু অপেক্ষমাণ অনুরোধ বাতিল করা যাবে।")
-    item.status = "REJECTED"
-    item.admin_user_id = admin.id
-    item.reviewed_at = datetime.now(timezone.utc)
-    record_admin_action(db, admin, "reject_agent_cash_in", item.request_id, "Rejected agent cash-in request")
+    # Serialize approval/rejection so two Admin actions cannot decide the same
+    # pending request concurrently. The audit entry is committed atomically.
     db.commit()
+    with db.begin():
+        item = db.scalar(select(AgentCashInRequest).where(
+            AgentCashInRequest.id == request_id).with_for_update())
+        if item is None:
+            raise HTTPException(status_code=404, detail="Cash In অনুরোধ পাওয়া যায়নি।")
+        if item.status != "PENDING":
+            raise HTTPException(status_code=409, detail="শুধু অপেক্ষমাণ অনুরোধ বাতিল করা যাবে।")
+        item.status = "REJECTED"
+        item.admin_user_id = admin.id
+        item.reviewed_at = datetime.now(timezone.utc)
+        db.add(AdminAuditLog(admin_user_id=admin.id, action="reject_agent_cash_in",
+                             target=item.request_id, details="Rejected agent cash-in request"))
     return {"request_id": item.request_id, "status": "REJECTED"}
 
 
