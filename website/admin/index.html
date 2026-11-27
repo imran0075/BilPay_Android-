@@ -39,7 +39,7 @@ main{max-width:1120px;width:94%;margin:28px auto 70px}.top{display:flex;align-it
 </main>
 <script>
 (()=>{
-const $=id=>document.getElementById(id);let token=sessionStorage.getItem("bpay_admin_token")||"";let base=sessionStorage.getItem("bpay_admin_api")||$("api").value;
+const $=id=>document.getElementById(id);let token="";let base=sessionStorage.getItem("bpay_admin_api")||$("api").value;
 $("api").value=base;
 const msg=(id,text,error=false)=>{$(id).textContent=text||"";$(id).classList.toggle("err",!!error)};
 const url=path=>base.replace(/\/$/,"")+path;
@@ -55,7 +55,7 @@ function signedIn(on){$("loginPanel").classList.toggle("hidden",on);$("dashboard
 async function login(){
  base=$("api").value.trim().replace(/\/$/,"");if(!base){msg("loginMsg","API URL দিন।",true);return}
  try{const d=await api("/api/v1/auth/login",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),password:$("password").value})});
- token=d.access_token;const old=token;await api("/api/v1/admin/overview");sessionStorage.setItem("bpay_admin_token",token);sessionStorage.setItem("bpay_admin_api",base);signedIn(true);await refreshAll();
+ token=d.access_token;await api("/api/v1/admin/overview");sessionStorage.setItem("bpay_admin_api",base);signedIn(true);await refreshAll();
  }catch(e){token="";msg("loginMsg",e.message,true)}
 }
 async function refreshRequests(){
@@ -72,7 +72,7 @@ async function refreshAll(){await Promise.all([refreshRequests(),refreshAgents()
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 $("login").addEventListener("click",login);
 $("password").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
-$("logout").addEventListener("click",()=>{token="";sessionStorage.removeItem("bpay_admin_token");signedIn(false)});
+$("logout").addEventListener("click",()=>{token="";signedIn(false)});
 $("refreshRequests").addEventListener("click",refreshRequests);
 $("refreshAgents").addEventListener("click",refreshAgents);
 $("approveAgent").addEventListener("click",async()=>{
@@ -90,7 +90,7 @@ document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()
  document.querySelectorAll("[data-tab]").forEach(x=>{x.classList.toggle("active",x===b);x.classList.toggle("secondary",x!==b)});
  $("requests").classList.toggle("hidden",b.dataset.tab!=="requests");$("agents").classList.toggle("hidden",b.dataset.tab!=="agents");
 }));
-if(token){signedIn(true);refreshAll().catch(()=>{token="";sessionStorage.removeItem("bpay_admin_token");signedIn(false)})}
+
 })();
 </script>
 </body></html>
