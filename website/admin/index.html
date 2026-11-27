@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#d30d32">
+<title>BPay Admin — Agent Cash In</title>
+<style>
+:root{color-scheme:dark;--bg:#071326;--panel:#10213b;--line:#ffffff20;--red:#d30d32;--gold:#f3c65d;--muted:#aebbd0;--ok:#64d6a2;--bad:#ff8e9d}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 90% 0,#2b4261 0,transparent 35%),var(--bg);color:#f7f9fc;font:15px/1.55 system-ui,"Noto Sans Bengali",sans-serif}
+main{max-width:1120px;width:94%;margin:28px auto 70px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}.brand{font-size:23px;font-weight:900}.brand b{color:#ff526e}.sub{color:var(--muted);font-size:13px}.panel{background:#10213bde;border:1px solid var(--line);border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 14px 45px #0002}.hidden{display:none!important}h1{font-size:27px;margin:0 0 5px}h2{font-size:19px;margin:0 0 15px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:6px;margin:9px 0}label{font-size:13px;color:#d5deeb}input,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:#08172b;color:white;font:inherit}button{border:0;border-radius:10px;padding:11px 15px;font:700 14px system-ui;cursor:pointer;background:var(--gold);color:#172235}button.secondary{background:#ffffff12;color:#eaf0f8;border:1px solid var(--line)}button.danger{background:#5c1c2a;color:#ffdbe0}button:disabled{opacity:.5;cursor:not-allowed}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.notice{padding:13px 15px;border:1px solid #e8bd5c55;border-radius:12px;background:#e8bd5c10;color:#f6dfaa;font-size:13px;margin:14px 0}.msg{font-size:13px;margin:10px 0;color:var(--ok);white-space:pre-wrap}.msg.err{color:var(--bad)}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.tab.active{background:var(--red);color:white}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:700px;font-size:13px}th,td{text-align:left;padding:11px 9px;border-bottom:1px solid var(--line);vertical-align:top}th{color:#f3d68e;font-weight:700}.pill{display:inline-block;border-radius:99px;padding:3px 9px;background:#ffffff12;font-size:11px}.pill.ok{color:var(--ok)}.pill.pending{color:var(--gold)}.pill.bad{color:var(--bad)}.small{font-size:12px;color:var(--muted)}.row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+@media(max-width:680px){.grid{grid-template-columns:1fr}.panel{padding:15px}main{width:93%;margin-top:18px}}
+</style>
+</head>
+<body>
+<main>
+<header class="top"><div><div class="brand"><b>B</b>Pay <span class="sub">ADMIN</span></div><div class="sub">Agent approval · Cash In control</div></div><button id="logout" class="secondary hidden" type="button">লগআউট</button></header>
+<section id="loginPanel" class="panel">
+<h1>Admin Login</h1><p class="sub">শুধু সার্ভারে অনুমোদিত Admin অ্যাকাউন্ট প্রবেশ করতে পারবে।</p>
+<div class="field"><label for="api">API Base URL</label><input id="api" value="https://bpay-agent-cashin-staging-api.onrender.com" autocomplete="url"></div>
+<div class="grid"><div class="field"><label for="phone">Admin মোবাইল নম্বর</label><input id="phone" inputmode="numeric" autocomplete="username" placeholder="01XXXXXXXXX"></div><div class="field"><label for="password">পাসওয়ার্ড</label><input id="password" type="password" autocomplete="current-password"></div></div>
+<div class="actions"><button id="login">নিরাপদে লগইন</button></div><div id="loginMsg" class="msg"></div>
+</section>
+<section id="dashboard" class="hidden">
+<div class="notice"><strong>গুরুত্বপূর্ণ:</strong> Agent Cash In অনুরোধ প্রথমে PENDING থাকবে। Admin নগদ টাকা বাস্তবে গ্রহণ/যাচাই করার পর অনুমোদন করলে কেবল অভ্যন্তরীণ লেজারে ব্যালেন্স যোগ হবে। এটি ব্যাংক/বিকাশ/নগদে উত্তোলনযোগ্য বাস্তব অর্থ নয়।</div>
+<div class="tabs"><button class="tab active" data-tab="requests">Cash In অনুরোধ</button><button class="tab secondary" data-tab="agents">এজেন্ট নিয়ন্ত্রণ</button></div>
+<section id="requests" class="panel">
+<div class="row"><div><h2>অপেক্ষমাণ Cash In</h2><div class="small">প্রতিটি অনুরোধ যাচাই করে অনুমোদন বা বাতিল করুন।</div></div><button id="refreshRequests" class="secondary">রিফ্রেশ</button></div>
+<div id="requestMsg" class="msg"></div><div class="tablewrap"><table><thead><tr><th>Request</th><th>Agent</th><th>Customer</th><th>Amount</th><th>Reference</th><th>সময়</th><th>Action</th></tr></thead><tbody id="requestRows"><tr><td colspan="7">লোড হচ্ছে…</td></tr></tbody></table></div>
+</section>
+<section id="agents" class="panel hidden">
+<h2>এজেন্ট অনুমোদন / সীমা নির্ধারণ</h2>
+<p class="small">যে ব্যবহারকারীর BPay অ্যাকাউন্ট আছে, তার নম্বর দিয়ে এজেন্ট হিসেবে সক্রিয় করুন।</p>
+<div class="grid"><div class="field"><label for="agentPhone">এজেন্টের BPay নম্বর</label><input id="agentPhone" inputmode="numeric" placeholder="01XXXXXXXXX"></div><div class="field"><label for="maxTx">প্রতি Cash In সর্বোচ্চ (BDT)</label><input id="maxTx" type="number" min="1" value="5000"></div><div class="field"><label for="daily">দৈনিক সীমা (BDT)</label><input id="daily" type="number" min="1" value="20000"></div></div>
+<div class="actions"><button id="approveAgent">এজেন্ট অনুমোদন</button><button id="refreshAgents" class="secondary">এজেন্ট তালিকা রিফ্রেশ</button></div><div id="agentMsg" class="msg"></div>
+<div class="tablewrap"><table><thead><tr><th>এজেন্ট</th><th>অবস্থা</th><th>প্রতি লেনদেন সীমা</th><th>দৈনিক সীমা</th><th>Action</th></tr></thead><tbody id="agentRows"><tr><td colspan="5">লোড হচ্ছে…</td></tr></tbody></table></div>
+</section>
+</section>
+<footer class="small">BPay · BilPay Technologies · Admin actions are audited. Keep this page private and never share your login password or token.</footer>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);let token="";let base=sessionStorage.getItem("bpay_admin_api")||$("api").value;
+$("api").value=base;
+const msg=(id,text,error=false)=>{$(id).textContent=text||"";$(id).classList.toggle("err",!!error)};
+const url=path=>base.replace(/\/$/,"")+path;
+async function api(path,options={}){
+ const headers={"Content-Type":"application/json",...(options.headers||{})};
+ if(token)headers.Authorization="Bearer "+token;
+ const res=await fetch(url(path),{...options,headers});
+ const data=await res.json().catch(()=>({detail:"সার্ভার থেকে সঠিক উত্তর পাওয়া যায়নি।"}));
+ if(!res.ok)throw new Error(typeof data.detail==="string"?data.detail:JSON.stringify(data.detail||data));
+ return data;
+}
+function signedIn(on){$("loginPanel").classList.toggle("hidden",on);$("dashboard").classList.toggle("hidden",!on);$("logout").classList.toggle("hidden",!on)}
+async function login(){
+ base=$("api").value.trim().replace(/\/$/,"");if(!base){msg("loginMsg","API URL দিন।",true);return}
+ try{const d=await api("/api/v1/auth/login",{method:"POST",body:JSON.stringify({phone:$("phone").value.trim(),password:$("password").value})});
+ token=d.access_token;await api("/api/v1/admin/overview");sessionStorage.setItem("bpay_admin_api",base);signedIn(true);await refreshAll();
+ }catch(e){token="";msg("loginMsg",e.message,true)}
+}
+async function refreshRequests(){
+ try{const d=await api("/api/v1/admin/agent-cash-ins?status=PENDING&limit=100");const rows=d.items||[];
+ $("requestRows").innerHTML=rows.length?rows.map(x=>'<tr><td>'+esc(x.request_id)+'</td><td>'+esc(x.agent_phone)+'</td><td>'+esc(x.customer_phone)+'</td><td>৳ '+esc(x.amount)+'</td><td>'+esc(x.reference||"—")+'<div class="small">'+esc(x.notes||"")+'</div></td><td>'+esc(new Date(x.created_at).toLocaleString())+'</td><td><div class="actions"><button data-approve="'+x.id+'">Approve</button><button class="danger" data-reject="'+x.id+'">Reject</button></div></td></tr>').join(""):'<tr><td colspan="7">কোনো অপেক্ষমাণ অনুরোধ নেই।</td></tr>';
+ }catch(e){msg("requestMsg",e.message,true)}
+}
+async function refreshAgents(){
+ try{const d=await api("/api/v1/admin/agents?limit=200");const rows=d.items||[];
+ $("agentRows").innerHTML=rows.length?rows.map(x=>'<tr><td>'+esc(x.full_name||"")+'<div class="small">'+esc(x.phone)+'</div></td><td><span class="pill '+(x.status==="ACTIVE"?"ok":"bad")+'">'+esc(x.status)+'</span></td><td>৳ '+esc(x.max_per_tx)+'</td><td>৳ '+esc(x.daily_limit)+'</td><td><button class="'+(x.status==="ACTIVE"?"danger":"secondary")+'" data-toggle-agent="'+x.user_id+'" data-next="'+(x.status==="ACTIVE"?"SUSPENDED":"ACTIVE")+'">'+(x.status==="ACTIVE"?"স্থগিত":"আবার চালু")+'</button></td></tr>').join(""):'<tr><td colspan="5">এখনো কোনো এজেন্ট অনুমোদিত হয়নি।</td></tr>';
+ }catch(e){msg("agentMsg",e.message,true)}
+}
+async function refreshAll(){await Promise.all([refreshRequests(),refreshAgents()])}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+$("login").addEventListener("click",login);
+$("password").addEventListener("keydown",e=>{if(e.key==="Enter")login()});
+$("logout").addEventListener("click",()=>{token="";signedIn(false)});
+$("refreshRequests").addEventListener("click",refreshRequests);
+$("refreshAgents").addEventListener("click",refreshAgents);
+$("approveAgent").addEventListener("click",async()=>{
+ try{const d=await api("/api/v1/admin/agents",{method:"POST",body:JSON.stringify({user_phone:$("agentPhone").value.trim(),max_per_tx:$("maxTx").value,daily_limit:$("daily").value})});msg("agentMsg","এজেন্ট অনুমোদিত: "+d.phone);await refreshAgents()}catch(e){msg("agentMsg",e.message,true)}
+});
+document.addEventListener("click",async e=>{
+ const a=e.target.closest("[data-approve]");const r=e.target.closest("[data-reject]");const t=e.target.closest("[data-toggle-agent]");
+ try{
+ if(a){if(!confirm("নগদ টাকা বাস্তবে গ্রহণ ও যাচাই করেছেন? নিশ্চিত হলে অনুমোদন দিন।"))return;await api("/api/v1/admin/agent-cash-ins/"+a.dataset.approve+"/approve",{method:"POST",body:"{}"});msg("requestMsg","অনুরোধ অনুমোদিত।");await refreshRequests()}
+ if(r){if(!confirm("এই Cash In অনুরোধ বাতিল করবেন?"))return;await api("/api/v1/admin/agent-cash-ins/"+r.dataset.reject+"/reject",{method:"POST",body:"{}"});msg("requestMsg","অনুরোধ বাতিল হয়েছে।");await refreshRequests()}
+ if(t){await api("/api/v1/admin/agents/"+t.dataset.toggleAgent+"/status",{method:"PUT",body:JSON.stringify({status:t.dataset.next})});msg("agentMsg","এজেন্টের অবস্থা আপডেট হয়েছে।");await refreshAgents()}
+ }catch(err){msg(a||r?"requestMsg":"agentMsg",err.message,true)}
+});
+document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{
+ document.querySelectorAll("[data-tab]").forEach(x=>{x.classList.toggle("active",x===b);x.classList.toggle("secondary",x!==b)});
+ $("requests").classList.toggle("hidden",b.dataset.tab!=="requests");$("agents").classList.toggle("hidden",b.dataset.tab!=="agents");
+}));
+
+})();
+</script>
+</body></html>
