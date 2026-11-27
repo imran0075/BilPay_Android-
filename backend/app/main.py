@@ -146,6 +146,35 @@ class AdminWalletDeposit(Base):
     status: Mapped[str] = mapped_column(String(16), default="POSTED")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
 
+class AgentProfile(Base):
+    __tablename__ = "agent_profiles"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True, index=True)
+    status: Mapped[str] = mapped_column(String(16), default="ACTIVE")
+    max_per_tx: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("5000.00"))
+    daily_limit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=Decimal("20000.00"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class AgentCashInRequest(Base):
+    __tablename__ = "agent_cash_in_requests"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(40), unique=True, index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    agent_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    customer_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    payment_method: Mapped[str] = mapped_column(String(10), default="cash")
+    reference: Mapped[str] = mapped_column(String(100), default="")
+    notes: Mapped[str] = mapped_column(String(300), default="")
+    status: Mapped[str] = mapped_column(String(16), default="PENDING")
+    admin_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=True)
+    deposit_transaction_id: Mapped[Optional[str]] = mapped_column(String(40), nullable=True, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AdminAuditLog(Base):
     __tablename__ = "admin_audit_logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -285,12 +314,32 @@ class AdminWalletDepositRequest(BaseModel):
     reference: str = Field(min_length=3, max_length=100)
     notes: str = Field(default="", max_length=300)
 
+class AgentCashInRequestPayload(BaseModel):
+    cash_received: Literal[True]
+    customer_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    amount: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
+    reference: str = Field(default="", max_length=100)
+    notes: str = Field(default="", max_length=300)
+
+class AdminAgentCreateRequest(BaseModel):
+    user_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
+    max_per_tx: Decimal = Field(gt=0, le=Decimal("500000"), max_digits=12, decimal_places=2)
+    daily_limit: Decimal = Field(gt=0, le=Decimal("2000000"), max_digits=12, decimal_places=2)
+
+class AdminAgentStatusRequest(BaseModel):
+    status: Literal["ACTIVE", "SUSPENDED"]
+
+
 class SandboxTransferRequest(BaseModel):
     recipient_phone: str = Field(pattern=r"^01[3-9][0-9]{8}$")
     amount: Decimal = Field(gt=0, le=Decimal("10000"), max_digits=7, decimal_places=2)
 
 def admin_wallet_deposits_enabled():
     return os.getenv("BILPAY_ADMIN_DEPOSITS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def agent_cashin_enabled():
+    return os.getenv("BILPAY_AGENT_CASHIN_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def internal_wallet_transfers_enabled():
@@ -503,6 +552,215 @@ def admin_internal_wallet_deposits(admin: User = Depends(admin_user), db: Sessio
                        "reference": d.reference, "notes": d.notes, "status": d.status,
                        "created_at": d.created_at.isoformat(), "mode": "INTERNAL_ONLY",
                        "real_money": False} for d, phone in rows]}
+
+
+@app.get("/api/v1/admin/agents")
+def admin_list_agents(admin: User = Depends(admin_user), db: Session = Depends(get_db), limit: int = 100):
+    limit = max(1, min(limit, 200))
+    rows = db.execute(select(AgentProfile, User.phone, User.full_name)
+                      .join(User, AgentProfile.user_id == User.id)
+                      .order_by(AgentProfile.created_at.desc()).limit(limit)).all()
+    record_admin_action(db, admin, "view_agents", "agents", f"Viewed up to {limit} agents")
+    return {"items": [{"user_id": p.user_id, "phone": phone, "full_name": name,
+                       "status": p.status, "max_per_tx": str(p.max_per_tx),
+                       "daily_limit": str(p.daily_limit), "created_at": p.created_at.isoformat()}
+                      for p, phone, name in rows]}
+
+
+@app.post("/api/v1/admin/agents")
+def admin_approve_agent(payload: AdminAgentCreateRequest, admin: User = Depends(admin_user),
+                        db: Session = Depends(get_db)):
+    target = db.scalar(select(User).where(User.phone == payload.user_phone))
+    if target is None:
+        raise HTTPException(status_code=404, detail="এই নম্বরের BPay অ্যাকাউন্ট পাওয়া যায়নি।")
+    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == target.id))
+    if profile is None:
+        profile = AgentProfile(user_id=target.id, status="ACTIVE",
+                               max_per_tx=payload.max_per_tx, daily_limit=payload.daily_limit)
+        db.add(profile)
+    else:
+        profile.status = "ACTIVE"
+        profile.max_per_tx = payload.max_per_tx
+        profile.daily_limit = payload.daily_limit
+    record_admin_action(db, admin, "approve_agent", target.phone,
+                        f"max_per_tx={payload.max_per_tx}; daily_limit={payload.daily_limit}")
+    db.commit()
+    return {"user_id": target.id, "phone": target.phone, "status": profile.status,
+            "max_per_tx": str(profile.max_per_tx), "daily_limit": str(profile.daily_limit)}
+
+
+@app.put("/api/v1/admin/agents/{agent_user_id}/status")
+def admin_update_agent_status(agent_user_id: int, payload: AdminAgentStatusRequest,
+                              admin: User = Depends(admin_user), db: Session = Depends(get_db)):
+    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == agent_user_id))
+    if profile is None:
+        raise HTTPException(status_code=404, detail="এজেন্ট প্রোফাইল পাওয়া যায়নি।")
+    profile.status = payload.status
+    target = db.get(User, agent_user_id)
+    record_admin_action(db, admin, "update_agent_status", target.phone if target else str(agent_user_id),
+                        "status=" + payload.status)
+    db.commit()
+    return {"user_id": agent_user_id, "status": profile.status}
+
+
+@app.get("/api/v1/agent/status")
+def agent_status(agent: User = Depends(current_user), db: Session = Depends(get_db)):
+    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == agent.id))
+    if profile is None or profile.status != "ACTIVE" or not agent_cashin_enabled():
+        return {"agent_enabled": False, "status": profile.status if profile else "NOT_APPROVED",
+                "cash_in_enabled": False, "mode": "INTERNAL_ONLY"}
+    return {"agent_enabled": True, "status": profile.status, "cash_in_enabled": True,
+            "max_per_tx": str(profile.max_per_tx), "daily_limit": str(profile.daily_limit),
+            "mode": "INTERNAL_ONLY", "real_money": False}
+
+
+@app.post("/api/v1/agent/cash-ins")
+def agent_create_cash_in(payload: AgentCashInRequestPayload,
+                         idempotency_key: str = Header(..., alias="Idempotency-Key", min_length=8, max_length=100),
+                         agent: User = Depends(current_user), db: Session = Depends(get_db)):
+    if not agent_cashin_enabled():
+        raise HTTPException(status_code=503, detail="এজেন্ট Cash In এখনো সার্ভারে চালু করা হয়নি।")
+    profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == agent.id).with_for_update())
+    if profile is None or profile.status != "ACTIVE":
+        raise HTTPException(status_code=403, detail="আপনি Admin অনুমোদিত সক্রিয় এজেন্ট নন।")
+    customer = db.scalar(select(User).where(User.phone == payload.customer_phone))
+    if customer is None:
+        raise HTTPException(status_code=404, detail="গ্রাহকের BPay অ্যাকাউন্ট পাওয়া যায়নি।")
+    if customer.id == agent.id:
+        raise HTTPException(status_code=400, detail="নিজের নম্বরে এজেন্ট Cash In করা যাবে না।")
+    if payload.amount > profile.max_per_tx:
+        raise HTTPException(status_code=400, detail="এই এজেন্টের প্রতি লেনদেনের সীমা অতিক্রম হয়েছে।")
+    existing = db.scalar(select(AgentCashInRequest).where(AgentCashInRequest.idempotency_key == idempotency_key))
+    if existing:
+        if existing.agent_user_id != agent.id or existing.customer_user_id != customer.id or Decimal(existing.amount) != payload.amount:
+            raise HTTPException(status_code=409, detail="এই Idempotency-Key অন্য অনুরোধে ব্যবহৃত হয়েছে।")
+        return {"request_id": existing.request_id, "status": existing.status,
+                "amount": str(existing.amount), "mode": "INTERNAL_ONLY", "real_money": False}
+    bd_now = datetime.now(timezone.utc) + timedelta(hours=6)
+    today = bd_now.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(hours=6)
+    used_today = db.scalar(select(func.coalesce(func.sum(AgentCashInRequest.amount), 0)).where(
+        AgentCashInRequest.agent_user_id == agent.id,
+        AgentCashInRequest.created_at >= today,
+        AgentCashInRequest.status.in_(["PENDING", "APPROVED"])
+    )) or 0
+    if Decimal(str(used_today)) + payload.amount > profile.daily_limit:
+        raise HTTPException(status_code=400, detail="এজেন্টের দৈনিক Cash In সীমা অতিক্রম হবে।")
+    request_id = "BPA-" + uuid.uuid4().hex[:24].upper()
+    item = AgentCashInRequest(request_id=request_id, idempotency_key=idempotency_key,
+                              agent_user_id=agent.id, customer_user_id=customer.id,
+                              amount=payload.amount, payment_method="cash",
+                              reference=payload.reference.strip(), notes=payload.notes.strip(),
+                              status="PENDING")
+    db.add(item)
+    db.commit()
+    return {"request_id": request_id, "status": "PENDING", "amount": str(payload.amount),
+            "payment_method": "cash", "mode": "INTERNAL_ONLY", "real_money": False,
+            "message": "Cash In অনুরোধ Admin অনুমোদনের অপেক্ষায় আছে; এখনো গ্রাহকের ব্যালেন্সে যোগ হয়নি।"}
+
+
+@app.get("/api/v1/agent/cash-ins")
+def agent_cash_in_history(agent: User = Depends(current_user), db: Session = Depends(get_db), limit: int = 50):
+    limit = max(1, min(limit, 100))
+    rows = db.execute(select(AgentCashInRequest, User.phone)
+                      .join(User, AgentCashInRequest.customer_user_id == User.id)
+                      .where(AgentCashInRequest.agent_user_id == agent.id)
+                      .order_by(AgentCashInRequest.created_at.desc()).limit(limit)).all()
+    return {"items": [{"request_id": item.request_id, "customer_phone": phone,
+                       "amount": str(item.amount), "status": item.status,
+                       "reference": item.reference, "created_at": item.created_at.isoformat(),
+                       "deposit_transaction_id": item.deposit_transaction_id,
+                       "mode": "INTERNAL_ONLY", "real_money": False}
+                      for item, phone in rows]}
+
+
+@app.get("/api/v1/admin/agent-cash-ins")
+def admin_agent_cash_ins(admin: User = Depends(admin_user), db: Session = Depends(get_db),
+                         status: str = "PENDING", limit: int = 100):
+    limit = max(1, min(limit, 200))
+    query = select(AgentCashInRequest, User.phone).join(
+        User, AgentCashInRequest.agent_user_id == User.id)
+    if status in {"PENDING", "APPROVED", "REJECTED"}:
+        query = query.where(AgentCashInRequest.status == status)
+    rows = db.execute(query.order_by(AgentCashInRequest.created_at.desc()).limit(limit)).all()
+    record_admin_action(db, admin, "view_agent_cash_ins", "agent_cash_ins", f"status={status}; limit={limit}")
+    return {"items": [{"id": r.id, "request_id": r.request_id, "agent_phone": agent_phone,
+                       "customer_phone": (db.get(User, r.customer_user_id).phone if db.get(User, r.customer_user_id) else ""),
+                       "amount": str(r.amount), "payment_method": r.payment_method,
+                       "reference": r.reference, "notes": r.notes, "status": r.status,
+                       "created_at": r.created_at.isoformat(), "deposit_transaction_id": r.deposit_transaction_id,
+                       "mode": "INTERNAL_ONLY", "real_money": False}
+                      for r, agent_phone in rows]}
+
+
+@app.post("/api/v1/admin/agent-cash-ins/{request_id}/approve")
+def admin_approve_agent_cash_in(request_id: int, admin: User = Depends(admin_user),
+                                db: Session = Depends(get_db)):
+    if not agent_cashin_enabled() or not admin_wallet_deposits_enabled():
+        raise HTTPException(status_code=503, detail="Agent Cash In ও Admin deposit feature সার্ভারে চালু করা হয়নি।")
+    db.commit()
+    try:
+        with db.begin():
+            item = db.scalar(select(AgentCashInRequest).where(
+                AgentCashInRequest.id == request_id).with_for_update())
+            if item is None:
+                raise HTTPException(status_code=404, detail="Cash In অনুরোধ পাওয়া যায়নি।")
+            if item.status == "APPROVED":
+                return {"request_id": item.request_id, "status": item.status,
+                        "deposit_transaction_id": item.deposit_transaction_id,
+                        "message": "আগের অনুমোদনের ফলাফল ফেরত দেওয়া হয়েছে।"}
+            if item.status != "PENDING":
+                raise HTTPException(status_code=409, detail="এই অনুরোধটি আর অনুমোদনযোগ্য নয়।")
+            profile = db.scalar(select(AgentProfile).where(AgentProfile.user_id == item.agent_user_id))
+            if profile is None or profile.status != "ACTIVE":
+                raise HTTPException(status_code=403, detail="এজেন্টটি বর্তমানে অনুমোদিত নয়।")
+            customer = db.get(User, item.customer_user_id)
+            wallet = db.scalar(select(InternalWalletAccount).where(
+                InternalWalletAccount.user_id == item.customer_user_id))
+            if customer is None:
+                raise HTTPException(status_code=404, detail="গ্রাহক পাওয়া যায়নি।")
+            if wallet is None:
+                wallet = InternalWalletAccount(wallet_id="BPW-" + uuid.uuid4().hex[:20].upper(),
+                                               user_id=customer.id, currency="BDT", status="ACTIVE")
+                db.add(wallet)
+                db.flush()
+            if wallet.status != "ACTIVE":
+                raise HTTPException(status_code=403, detail="গ্রাহকের ওয়ালেট সক্রিয় নয়।")
+            transaction_id = "BPD-" + uuid.uuid4().hex[:24].upper()
+            deposit = AdminWalletDeposit(
+                transaction_id=transaction_id, idempotency_key="agent-cashin-" + str(item.id),
+                wallet_id=wallet.wallet_id, user_id=customer.id, admin_user_id=admin.id,
+                amount=item.amount, payment_method="cash", reference=(item.reference or item.request_id),
+                notes=("Agent " + str(item.agent_user_id) + ": " + item.notes)[:300], status="POSTED")
+            db.add(deposit)
+            item.status = "APPROVED"
+            item.admin_user_id = admin.id
+            item.deposit_transaction_id = transaction_id
+            item.reviewed_at = datetime.now(timezone.utc)
+            db.add(AdminAuditLog(admin_user_id=admin.id, action="approve_agent_cash_in",
+                                 target=customer.phone, details=f"{item.request_id}; deposit={transaction_id}; amount={item.amount}"))
+        return {"request_id": item.request_id, "status": "APPROVED",
+                "deposit_transaction_id": transaction_id, "amount": str(item.amount),
+                "mode": "INTERNAL_ONLY", "real_money": False,
+                "message": "Admin অনুমোদনে অভ্যন্তরীণ লেজারে জমা হয়েছে; এটি উত্তোলনযোগ্য বাস্তব টাকা নয়।"}
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Cash In অনুরোধটি আগে প্রক্রিয়া হয়েছে; ইতিহাস যাচাই করুন।")
+
+
+@app.post("/api/v1/admin/agent-cash-ins/{request_id}/reject")
+def admin_reject_agent_cash_in(request_id: int, admin: User = Depends(admin_user),
+                               db: Session = Depends(get_db)):
+    item = db.scalar(select(AgentCashInRequest).where(AgentCashInRequest.id == request_id))
+    if item is None:
+        raise HTTPException(status_code=404, detail="Cash In অনুরোধ পাওয়া যায়নি।")
+    if item.status != "PENDING":
+        raise HTTPException(status_code=409, detail="শুধু অপেক্ষমাণ অনুরোধ বাতিল করা যাবে।")
+    item.status = "REJECTED"
+    item.admin_user_id = admin.id
+    item.reviewed_at = datetime.now(timezone.utc)
+    record_admin_action(db, admin, "reject_agent_cash_in", item.request_id, "Rejected agent cash-in request")
+    db.commit()
+    return {"request_id": item.request_id, "status": "REJECTED"}
 
 
 @app.post("/api/v1/internal-wallet/transfers")
