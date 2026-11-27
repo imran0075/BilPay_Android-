@@ -4,7 +4,7 @@ on:
   push:
     branches: ["feature/web-admin-agent-cashin"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "fix/internal-wallet-send-money-1.4.6"]
 
 permissions:
   contents: read
